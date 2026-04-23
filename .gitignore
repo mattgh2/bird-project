@@ -4,8 +4,6 @@ node_modules/
 yarn-error.log
 data
 start
-foo
-*.json
 download_fails
 archived_data
 csv/
