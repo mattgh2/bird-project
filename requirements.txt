@@ -1,0 +1,8 @@
+aiohttp
+fastapi
+pandas
+pyarrow
+uvicorn
+pydantic
+supabase
+
