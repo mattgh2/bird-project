@@ -3,3 +3,5 @@ start
 foo
 *.json
 download_fails
+archived_data
+csv/
