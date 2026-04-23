@@ -20,12 +20,15 @@ export function BirdMap(data) {
 
   const ctx = canvas.getContext("2d");
 
+  const darkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const borderColor = darkMode ? "#fff" : "#000";
+
   // Draw state outlines
   ctx.beginPath();
   path.context(ctx)(states);
-  ctx.fillStyle = "#e0e0e0";
+  ctx.fillStyle = "#d0d0d0";
   ctx.fill();
-  ctx.strokeStyle = "#fff";
+  ctx.strokeStyle = borderColor;
   ctx.lineWidth = 0.5;
   ctx.stroke();
 
