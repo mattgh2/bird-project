@@ -81,7 +81,11 @@ export function testview(data, maxRows = 1000) {
     .bird-table-wrap {
       width: 100%;
       height: 100%;
+      display: flex;
+      flex-direction: column;
       font: 14px var(--sans-serif, sans-serif);
+      color: var(--theme-foreground, #111);
+      background: var(--theme-background, #fff);
     }
 
     .bird-search {
@@ -89,45 +93,64 @@ export function testview(data, maxRows = 1000) {
       width: 100%;
       margin-bottom: 6px;
       padding: 6px 8px;
-      border: 1px solid #ccc;
+      border: 1px solid var(--theme-foreground-fainter, #ccc);
       border-radius: 6px;
+      background: var(--theme-background, #fff);
+      color: var(--theme-foreground, #111);
+      outline: none;
+    }
+
+    .bird-search:focus {
+      border-color: var(--theme-foreground-muted, #888);
     }
 
     .bird-count {
       margin-bottom: 6px;
       font-size: 12px;
-      color: #666;
+      color: var(--theme-foreground-muted, #666);
     }
 
     .bird-table-box {
-      width: 200%;
-      height: calc(100% - 58px);
+      flex: 1 1 0;
+      min-height: 0;
       overflow: auto;
-      border: 1px solid #d0d0d0;
+      border: 1px solid var(--theme-foreground-fainter, #d0d0d0);
       border-radius: 8px;
+      background: var(--theme-background, #fff);
     }
 
     .bird-table {
-      width: 100%;
+      width: max-content;
+      min-width: 100%;
       border-collapse: collapse;
+    }
+
+    .bird-table tbody tr {
+      background: var(--theme-background, #fff);
     }
 
     .bird-table th,
     .bird-table td {
       padding: 4px 10px;
-      border-bottom: 1px solid #ddd;
+      border-bottom: 1px solid var(--theme-foreground-fainter, #ddd);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       text-align: left;
+      color: var(--theme-foreground, #111);
     }
 
     .bird-table th {
       position: sticky;
       top: 0;
-      background: #f3f3f3;
+      background: var(--theme-background-alt, #f3f3f3);
+      color: var(--theme-foreground, #111);
       font-weight: 700;
       z-index: 1;
+    }
+
+    .bird-table tbody tr:hover {
+      background: var(--theme-background-alt, #f5f5f5);
     }
   `);
 

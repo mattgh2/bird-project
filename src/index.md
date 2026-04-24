@@ -10,6 +10,146 @@ toc: false
 
     const birds_raw = await FileAttachment("data/birds.parquet").parquet();
     const birds_raw_clean = birds_raw.toArray().map(d => d.toJSON());
+
+    // Aggregate raw rows into {lat_bin, lng_bin, count} for the map
+    function aggregateForMap(rows) {
+      const bins = new Map();
+      for (const d of rows) {
+        const lat = Number(d.lat);
+        const lng = Number(d.lng);
+        if (!lat || !lng || isNaN(lat) || isNaN(lng)) continue;
+        const lat_bin = Math.round(lat);
+        const lng_bin = Math.round(lng);
+        const key = `${lat_bin},${lng_bin}`;
+        bins.set(key, (bins.get(key) || 0) + (Number(d.observation_count) || 1));
+      }
+      return Array.from(bins, ([key, count]) => {
+        const [lat_bin, lng_bin] = key.split(",").map(Number);
+        return {lat_bin, lng_bin, count};
+      });
+    }
+
+    // Unique sorted months derived from raw data
+    const uniqueMonths = [...new Map(
+      birds_raw_clean.flatMap(d => {
+        const t = Number(d.observation_date);
+        if (!t || isNaN(t)) return [];
+        const dt = new Date(t);
+        const year = dt.getUTCFullYear();
+        const month = dt.getUTCMonth();
+        const key = `${year}-${month}`;
+        return [[key, {
+          year, month,
+          ts: Date.UTC(year, month, 1),
+          endTs: Date.UTC(year, month + 1, 1)
+        }]];
+      })
+    ).values()].sort((a, b) => a.ts - b.ts);
+
+    // Map canvas — initially shows all pre-aggregated data
+    const mapCanvas = BirdMap(birds_clean);
+
+    // Month slider widget
+    const dateSliderNode = (() => {
+      const fmtMonth = ts => new Date(ts).toLocaleDateString("en-US", {
+        month: "long", year: "numeric", timeZone: "UTC"
+      });
+      const fmtShort = ts => new Date(ts).toLocaleDateString("en-US", {
+        month: "short", year: "numeric", timeZone: "UTC"
+      });
+
+      const style = document.createElement("style");
+      style.textContent = `
+        .bds-wrap {
+          position: absolute; bottom: 0; left: 0; right: 0;
+          padding: 7px 16px 10px; box-sizing: border-box;
+          background: rgba(255,255,255,0.88);
+          backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+          border-top: 1px solid rgba(0,0,0,0.07);
+          font-family: var(--sans-serif, sans-serif);
+          display: flex; flex-direction: column; gap: 4px;
+        }
+        @media (prefers-color-scheme: dark) {
+          .bds-wrap {
+            background: rgba(12,12,12,0.82);
+            border-top-color: rgba(255,255,255,0.07);
+          }
+        }
+        .bds-header { display:flex; justify-content:space-between; align-items:baseline; }
+        .bds-label { font-size:13px; font-weight:600; color:var(--theme-foreground,#111); }
+        .bds-btn { font-size:11px; color:var(--theme-foreground-muted,#888); cursor:pointer; text-decoration:underline; border:none; background:none; padding:0; }
+        .bds-slider { width:100%; cursor:pointer; }
+        .bds-ends { display:flex; justify-content:space-between; font-size:11px; color:var(--theme-foreground-muted,#888); }
+        .bds-count { font-size:11px; color:var(--theme-foreground-muted,#888); text-align:center; }
+      `;
+      document.head.appendChild(style);
+
+      const wrap = document.createElement("div");
+      wrap.className = "bds-wrap";
+
+      const header = document.createElement("div");
+      header.className = "bds-header";
+
+      const label = document.createElement("span");
+      label.className = "bds-label";
+
+      const btn = document.createElement("button");
+      btn.className = "bds-btn";
+
+      header.append(label, btn);
+
+      const slider = document.createElement("input");
+      slider.type = "range";
+      slider.className = "bds-slider";
+      slider.min = 0;
+      slider.max = Math.max(0, uniqueMonths.length - 1);
+      slider.value = 0;
+      slider.step = 1;
+
+      const ends = document.createElement("div");
+      ends.className = "bds-ends";
+      if (uniqueMonths.length) {
+        ends.innerHTML = `<span>${fmtShort(uniqueMonths[0].ts)}</span><span>${fmtShort(uniqueMonths[uniqueMonths.length - 1].ts)}</span>`;
+      }
+
+      const countEl = document.createElement("div");
+      countEl.className = "bds-count";
+
+      let showingAll = true;
+
+      function applyAll() {
+        showingAll = true;
+        label.textContent = "All months";
+        btn.textContent = "Filter by month ›";
+        countEl.textContent = `${birds_raw_clean.length.toLocaleString()} total observations`;
+        mapCanvas.update(birds_clean);
+      }
+
+      function applyMonth(idx) {
+        showingAll = false;
+        const {ts, endTs} = uniqueMonths[idx];
+        label.textContent = fmtMonth(ts);
+        btn.textContent = "Show all";
+        const filtered = birds_raw_clean.filter(d => {
+          const t = Number(d.observation_date);
+          return t >= ts && t < endTs;
+        });
+        countEl.textContent = `${filtered.length.toLocaleString()} observation${filtered.length !== 1 ? "s" : ""}`;
+        mapCanvas.update(aggregateForMap(filtered));
+      }
+
+      applyAll();
+
+      slider.addEventListener("input", () => applyMonth(Number(slider.value)));
+
+      btn.addEventListener("click", () => {
+        if (showingAll) applyMonth(Number(slider.value));
+        else applyAll();
+      });
+
+      wrap.append(header, slider, ends, countEl);
+      return wrap;
+    })();
 ```
 
 <div class="hero">
@@ -19,8 +159,9 @@ toc: false
     <div class="main-left"> 
         <div class="main-left-top"> 
         <div>
-        ${BirdMap(birds_clean)}
+        ${mapCanvas}
         </div>
+        ${dateSliderNode}
         </div>
         <div class="main-left-bottom"> 
         </div>
@@ -86,11 +227,12 @@ toc: false
     }
     .below-main {
         height: 40vh;
-        background-color: pink;
+        background-color: var(--theme-background-alt, #f8f8f8);
         margin-top: 2%;
-        border: 2px solid grey;
+        border: 1px solid var(--theme-foreground-fainter, #e0e0e0);
         border-radius: 20px;
-        overflow-y: auto;
+        overflow: hidden;
+        box-sizing: border-box;
     }
 
     .main {
@@ -127,6 +269,7 @@ toc: false
     .main-left-top {
         width: 100%;
         height: 75%;
+        position: relative;
     }
 
     .main-left-bottom {
