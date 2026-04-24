@@ -20,15 +20,19 @@ toc: false
     const birds_month_bins = await FileAttachment("data/birds-month-bin.parquet").parquet();
     const birds_month_clean = birds_month_bins.toArray().map(d => d.toJSON());
 
+    // List of all species
     const species = await FileAttachment("data/birds-species.parquet").parquet();
     const species_clean = species.toArray().map(d => d.toJSON());
 
+    // Lists species x state -> bar chart
     const species_state = await FileAttachment("data/birds-species-state.parquet").parquet();
     const species_state_clean = species_state.toArray().map(d => d.toJSON());
 
+    // (month x count) for line chart
     const species_month_obvcount = await FileAttachment("data/birds-species-month-obvcount.parquet").parquet();
     const species_month_obvcount_clean = species_month_obvcount.toArray().map(d => d.toJSON());
 
+    // (state x month -> count) for heatmap
     const state_month_obvcount = await FileAttachment("data/birds-state-month-obvcount.parquet").parquet();
     const state_month_obvcount_clean = state_month_obvcount.toArray().map(d => d.toJSON());
 
