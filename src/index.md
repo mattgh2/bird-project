@@ -190,9 +190,7 @@ toc: false
 <div class="main">
     <div class="main-left"> 
         <div class="main-left-top"> 
-        <div>
         ${mapCanvas}
-        </div>
         ${dateSliderNode}
         </div>
         <div class="main-left-bottom"> 

@@ -5,21 +5,61 @@ const us = await fetch("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json"
   .then(r => r.json());
 
 const states = topojson.feature(us, us.objects.states);
+const stateFeatures = states.features;
 
 export function BirdMap(data) {
   const width = 960;
   const height = 600;
-  const projection = d3.geoAlbersUsa().fitSize([width, height], states);
-  const path = d3.geoPath(projection);
+
+  let selectedState = null;
+  let currentPoints = data;
+  let highlightPoints = null;
+  let primaryPoint = null;
+
+  let projection = d3.geoAlbersUsa().fitSize([width, height], states);
+  let path = d3.geoPath(projection);
+
+  const container = document.createElement("div");
+  container.style.cssText = "position:relative;width:100%;";
 
   const canvas = document.createElement("canvas");
   canvas.width = width;
   canvas.height = height;
   canvas.style.width = "100%";
   canvas.style.height = "auto";
+  canvas.style.display = "block";
+  canvas.style.cursor = "pointer";
 
   const ctx = canvas.getContext("2d");
   const darkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+  const backBtn = document.createElement("button");
+  backBtn.textContent = "← Full View";
+  backBtn.style.cssText = `
+    position:absolute; top:10px; right:10px; display:none;
+    padding:5px 14px; font-size:12px; font-family:var(--sans-serif,sans-serif);
+    background:${darkMode ? "rgba(30,30,30,0.92)" : "rgba(255,255,255,0.92)"};
+    color:${darkMode ? "#eee" : "#222"};
+    border:1px solid ${darkMode ? "#555" : "#ccc"};
+    border-radius:6px; cursor:pointer; z-index:10;
+    box-shadow:0 1px 4px rgba(0,0,0,0.18);
+  `;
+
+  backBtn.addEventListener("click", () => {
+    selectedState = null;
+    projection = d3.geoAlbersUsa().fitSize([width, height], states);
+    path = d3.geoPath(projection);
+    backBtn.style.display = "none";
+    canvas.style.cursor = "pointer";
+    redraw();
+  });
+
+  container.append(canvas, backBtn);
+
+  function getDisplayPoints() {
+    if (!selectedState || !currentPoints) return currentPoints;
+    return currentPoints.filter(d => d3.geoContains(selectedState, [d.lng_bin, d.lat_bin]));
+  }
 
   function drawBase() {
     ctx.clearRect(0, 0, width, height);
@@ -46,10 +86,6 @@ export function BirdMap(data) {
       ctx.fill();
     }
   }
-
-  let currentPoints = data;
-  let highlightPoints = null;
-  let primaryPoint = null;
 
   function redraw() {
     drawBase();
@@ -79,22 +115,43 @@ export function BirdMap(data) {
         }
       }
     } else {
-      drawPoints(currentPoints);
+      drawPoints(getDisplayPoints());
     }
   }
 
   redraw();
 
-  canvas.update = function(pointData) {
+  canvas.addEventListener("click", (event) => {
+    if (selectedState) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = width / rect.width;
+    const scaleY = height / rect.height;
+    const x = (event.clientX - rect.left) * scaleX;
+    const y = (event.clientY - rect.top) * scaleY;
+
+    const coords = projection.invert([x, y]);
+    if (!coords) return;
+    const clicked = stateFeatures.find(f => d3.geoContains(f, coords));
+    if (!clicked) return;
+
+    selectedState = clicked;
+    projection = d3.geoAlbersUsa().fitSize([width, height], selectedState);
+    path = d3.geoPath(projection);
+    backBtn.style.display = "block";
+    canvas.style.cursor = "default";
+    redraw();
+  });
+
+  container.update = function(pointData) {
     currentPoints = pointData;
     redraw();
   };
 
-  canvas.highlight = function(pointData, primary = null) {
+  container.highlight = function(pointData, primary = null) {
     highlightPoints = pointData;
     primaryPoint = primary;
     redraw();
   };
 
-  return canvas;
+  return container;
 }
