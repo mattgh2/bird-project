@@ -3,15 +3,12 @@ import {DuckDBClient} from "npm:@observablehq/duckdb";
 
 export async function testview(data) {
 
-    // const db = await DuckDBClient.of({
-    //     birds: data
-    // });
-    // const birds = await db.query("SELECT * FROM birds");
+    const db = await DuckDBClient.of({
+        birds: data
+    });
+    const birds = await db.query("SELECT * FROM birds");
 
-    console.log(data);
-    // data.forEach(d => {
-    //
-    // })
+    return birds;
 
     const svg = d3.create("svg")
         .attr("width", 600)
@@ -28,3 +25,4 @@ export async function testview(data) {
 
     return svg.node();
 }
+

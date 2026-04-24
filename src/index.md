@@ -3,7 +3,9 @@ toc: false
 ---
 ```js
     import {BirdMap} from "./components/birdmap.js";
+    import {testview} from "./components/testview.js";
     const birds = await FileAttachment("data/birds.parquet").parquet();
+    const birds_clean = birds.toArray().map(d => d.toJSON());
 ```
 
 <div class="hero">
@@ -29,6 +31,7 @@ toc: false
     </div>
 </div>
 <div class="below-main">
+    ${testview(birds_clean)}
 </div>
 
 <style>

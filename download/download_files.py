@@ -105,10 +105,10 @@ def main():
 
     with open("manifest.json", 'r') as f:
         manifest = json.load(f)
-    with open("eBirdStateMapping.json", 'r') as f:
-        ebird_state_mapping = json.load(f)
-    with open("eBirdCountryMapping.json", 'r') as f:
-        ebird_country_mapping = json.load(f)
+    # with open("eBirdStateMapping.json", 'r') as f:
+    #     ebird_state_mapping = json.load(f)
+    # with open("eBirdCountryMapping.json", 'r') as f:
+    #     ebird_country_mapping = json.load(f)
 
 
     args = parser.parse_args()
@@ -125,7 +125,7 @@ def main():
     else:
         parquets = [
                 parquet for parquet in manifest
-                if re.search(r"US-.+", parquet)
+                if re.search(r"US[^-].+", parquet)
         ]
 
     if (args.reset_index):
