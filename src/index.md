@@ -58,15 +58,19 @@ toc: false
 
     let currentRaw = birds_raw_clean;
     let currentSelection = null;
+    let currentSelectedRow = null;
 
     function refreshHighlight() {
-      if (!currentSelection) { mapCanvas.highlight(null); return; }
+      if (!currentSelection) { mapCanvas.highlight(null, null); return; }
       const pts = aggregateForMap(currentRaw.filter(d => d.common_name === currentSelection));
-      mapCanvas.highlight(pts);
+      const primaryPts = currentSelectedRow ? aggregateForMap([currentSelectedRow]) : null;
+      const primary = primaryPts && primaryPts.length ? primaryPts[0] : null;
+      mapCanvas.highlight(pts, primary);
     }
 
-    tableNode.onSelect = (commonName) => {
+    tableNode.onSelect = (commonName, row) => {
       currentSelection = commonName;
+      currentSelectedRow = row;
       refreshHighlight();
     };
 

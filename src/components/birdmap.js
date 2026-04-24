@@ -49,6 +49,7 @@ export function BirdMap(data) {
 
   let currentPoints = data;
   let highlightPoints = null;
+  let primaryPoint = null;
 
   function redraw() {
     drawBase();
@@ -63,6 +64,20 @@ export function BirdMap(data) {
         ctx.fillStyle = `rgba(220, 30, 30, ${0.5 + 0.5 * (d.count / maxCount)})`;
         ctx.fill();
       }
+      if (primaryPoint) {
+        const p = projection([primaryPoint.lng_bin, primaryPoint.lat_bin]);
+        if (p) {
+          const r = Math.max(rScale(primaryPoint.count), 6);
+          ctx.beginPath();
+          ctx.arc(p[0], p[1], r + 2, 0, 2 * Math.PI);
+          ctx.fillStyle = `rgba(255, 255, 255, 0.85)`;
+          ctx.fill();
+          ctx.beginPath();
+          ctx.arc(p[0], p[1], r, 0, 2 * Math.PI);
+          ctx.fillStyle = `rgba(30, 190, 30, 0.95)`;
+          ctx.fill();
+        }
+      }
     } else {
       drawPoints(currentPoints);
     }
@@ -75,8 +90,9 @@ export function BirdMap(data) {
     redraw();
   };
 
-  canvas.highlight = function(pointData) {
+  canvas.highlight = function(pointData, primary = null) {
     highlightPoints = pointData;
+    primaryPoint = primary;
     redraw();
   };
 

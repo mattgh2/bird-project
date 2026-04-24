@@ -27,9 +27,12 @@ export function testview(data, maxRows = 1000) {
     .on("click", () => {
       if (!selectedName) return;
       selectedName = null;
-      tbody.selectAll("tr").classed("bird-row-selected", false);
+      selectedRow = null;
+      tbody.selectAll("tr")
+        .classed("bird-row-selected", false)
+        .classed("bird-row-selected-primary", false);
       updateClearBtn();
-      if (node.onSelect) node.onSelect(null);
+      if (node.onSelect) node.onSelect(null, null);
     });
 
   const dayWrap = controlRow.append("div")
@@ -79,6 +82,7 @@ export function testview(data, maxRows = 1000) {
     .text(d => d[0]);
 
   let selectedName = null;
+  let selectedRow = null;
   let selectedDay = 0; // 0 = all days
 
   function updateClearBtn() {
@@ -99,14 +103,23 @@ export function testview(data, maxRows = 1000) {
     const tr = tbody.selectAll("tr")
       .data(shown)
       .join("tr")
-      .classed("bird-row-selected", d => d.common_name === selectedName)
+      .classed("bird-row-selected", d => d.common_name === selectedName && d !== selectedRow)
+      .classed("bird-row-selected-primary", d => d === selectedRow)
       .style("cursor", "pointer")
       .on("click", function(event, d) {
         const name = d.common_name ?? null;
-        selectedName = selectedName === name ? null : name;
-        tbody.selectAll("tr").classed("bird-row-selected", row => row.common_name === selectedName);
+        if (selectedRow === d) {
+          selectedName = null;
+          selectedRow = null;
+        } else {
+          selectedName = name;
+          selectedRow = d;
+        }
+        tbody.selectAll("tr")
+          .classed("bird-row-selected", row => row.common_name === selectedName && row !== selectedRow)
+          .classed("bird-row-selected-primary", row => row === selectedRow);
         updateClearBtn();
-        if (node.onSelect) node.onSelect(selectedName);
+        if (node.onSelect) node.onSelect(selectedName, selectedRow);
       });
 
     tr.selectAll("td")
@@ -280,6 +293,10 @@ export function testview(data, maxRows = 1000) {
 
     .bird-row-selected, .bird-row-selected:hover {
       background: rgba(220, 30, 30, 0.12) !important;
+    }
+
+    .bird-row-selected-primary, .bird-row-selected-primary:hover {
+      background: rgba(30, 160, 30, 0.18) !important;
     }
   `);
 
