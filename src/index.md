@@ -30,8 +30,8 @@ toc: false
         </div>
     </div>
 </div>
-<div class="below-main">
-    ${testview(birds_clean)}
+<div class="below-main full-width-output">
+    ${testview(birds_clean, 1000)}
 </div>
 
 <style>
@@ -168,6 +168,7 @@ toc: false
         line-height: 1.5;
         color: var(--theme-foreground-muted);
     }
+
 
     @media (min-width: 640px) {
         .hero h1 {
