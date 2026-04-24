@@ -11,7 +11,7 @@ toc: false
     const birds_raw = await FileAttachment("data/birds.parquet").parquet();
     const birds_raw_clean = birds_raw.toArray().map(d => d.toJSON());
 
-    const birds_month_bins = await FileAttachment("data/birds-month-bins.parquet").parquet();
+    const birds_month_bins = await FileAttachment("data/birds-month-bin.parquet").parquet();
     const birds_month_clean = birds_month_bins.toArray().map(d => d.toJSON());
 
     // Aggregate raw rows into {lat_bin, lng_bin, count} for the map
@@ -124,21 +124,20 @@ toc: false
         showingAll = true;
         label.textContent = "All months";
         btn.textContent = "Filter by month ›";
-        countEl.textContent = `${birds_raw_clean.length.toLocaleString()} total observations`;
+        //countEl.textContent = `${birds_raw_clean.length.toLocaleString()} total observations`;
         mapCanvas.update(birds_clean);
       }
 
       function applyMonth(idx) {
         showingAll = false;
-        const {ts, endTs} = uniqueMonths[idx];
+        const {ts, month} = uniqueMonths[idx];
         label.textContent = fmtMonth(ts);
         btn.textContent = "Show all";
-        const filtered = birds_raw_clean.filter(d => {
-          const t = Number(d.observation_date);
-          return t >= ts && t < endTs;
-        });
-        countEl.textContent = `${filtered.length.toLocaleString()} observation${filtered.length !== 1 ? "s" : ""}`;
-        mapCanvas.update(aggregateForMap(filtered));
+        const monthNum = month + 1; // uniqueMonths uses 0-indexed getUTCMonth(); birds_month_clean uses 1-indexed
+        const filtered = birds_month_clean.filter(d => Number(d.month) === monthNum);
+        const total = filtered.reduce((sum, d) => sum + Number(d.count), 0);
+        //countEl.textContent = `${total.toLocaleString()} observation${total !== 1 ? "s" : ""}`;
+        mapCanvas.update(filtered);
       }
 
       applyAll();
