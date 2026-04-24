@@ -28,11 +28,17 @@ toc: false
         </div>
     </div>
 </div>
+<div class="below-main">
+</div>
 
 <style>
     body, html {
         margin: 0 !important;
         padding: 0 !important;
+    }
+
+    .observablehq-pre-container {
+        display: none;
     }
 
     #observablehq, #observablehq-center, #observablehq-main {
@@ -59,6 +65,7 @@ toc: false
         display: none;
         margin-left: -100vw;
     }
+
     #observablehq-sidebar-toggle {
         margin: 0;
         margin-left: -100vw;
@@ -66,9 +73,20 @@ toc: false
         display: none;
     }
 
-    .main {
-        margin-left: 2%;
+    .below-main, .main {
         width: 95vw;
+        margin-left: 2%;
+    }
+    .below-main {
+        height: 40vh;
+        background-color: pink;
+        margin-top: 2%;
+        border: 2px solid grey;
+        border-radius: 20px;
+        overflow-y: auto;
+    }
+
+    .main {
         height: 125vh;
         display: flex;
         gap: 2%;
