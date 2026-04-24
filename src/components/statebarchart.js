@@ -61,10 +61,25 @@ export function StateBarChart(speciesClean, speciesStateClean) {
     .attr("fill", darkMode ? "#666" : "#aaa")
     .text("Select a species to view state distribution");
 
+  let currentData = speciesStateClean;
+
+  function aggregateFromRaw(rawRows) {
+    const bins = new Map();
+    for (const d of rawRows) {
+      if (!d.common_name || !d.state) continue;
+      const key = `${d.common_name}\0${d.state}`;
+      bins.set(key, (bins.get(key) || 0) + (Number(d.observation_count) || 1));
+    }
+    return Array.from(bins, ([key, count]) => {
+      const [species, state] = key.split("\0");
+      return { species, state, count };
+    });
+  }
+
   function draw(speciesName) {
     empty.style("display", "none");
 
-    const rows = speciesStateClean
+    const rows = currentData
       .filter(d => d.species === speciesName)
       .map(d => ({ state: String(d.state), count: Number(d.count) }))
       .sort((a, b) => b.count - a.count);
@@ -154,6 +169,11 @@ export function StateBarChart(speciesClean, speciesStateClean) {
   select.addEventListener("change", () => draw(select.value));
 
   positionEmpty();
+
+  container.update = function(rawRows) {
+    currentData = rawRows == null ? speciesStateClean : aggregateFromRaw(rawRows);
+    if (select.value) draw(select.value);
+  };
 
   return container;
 }

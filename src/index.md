@@ -157,6 +157,7 @@ toc: false
         btn.textContent = "Filter by month ›";
         mapCanvas.update(birds_clean);
         tableNode.update(birds_raw_clean);
+        barChartNode.update(null);
         currentRaw = birds_raw_clean;
         refreshHighlight();
       }
@@ -175,6 +176,7 @@ toc: false
           return t >= ts && t < endTs;
         });
         tableNode.update(rawFiltered);
+        barChartNode.update(rawFiltered);
         currentRaw = rawFiltered;
         refreshHighlight();
       }
