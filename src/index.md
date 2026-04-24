@@ -4,6 +4,7 @@ toc: false
 ```js
     import {BirdMap} from "./components/birdmap.js";
     import {testview} from "./components/testview.js";
+    import {StateBarChart} from "./components/statebarchart.js";
 
     // full data with binning to reduce size.
     const birds_agg = await FileAttachment("data/birds-agg.parquet").parquet();
@@ -16,6 +17,13 @@ toc: false
     // full data with binning specifically for display of each month.
     const birds_month_bins = await FileAttachment("data/birds-month-bin.parquet").parquet();
     const birds_month_clean = birds_month_bins.toArray().map(d => d.toJSON());
+
+    const species = await FileAttachment("data/birds-species.parquet").parquet();
+    const species_clean = species.toArray().map(d => d.toJSON());
+
+    const species_state = await FileAttachment("data/birds-species-state.parquet").parquet();
+    const species_state_clean = species_state.toArray().map(d => d.toJSON());
+
 
     // Aggregate raw rows into {lat_bin, lng_bin, count} for the map
     function aggregateForMap(rows) {
@@ -55,6 +63,7 @@ toc: false
     // Map canvas — initially shows all pre-aggregated data
     const mapCanvas = BirdMap(birds_clean);
     const tableNode = testview(birds_raw_clean, 1000);
+    const barChartNode = StateBarChart(species_clean, species_state_clean);
 
     let currentRaw = birds_raw_clean;
     let currentSelection = null;
@@ -194,6 +203,7 @@ toc: false
         ${dateSliderNode}
         </div>
         <div class="main-left-bottom"> 
+        ${barChartNode}
         </div>
     </div>
     <div class="main-right"> 
@@ -257,11 +267,8 @@ toc: false
     }
     .below-main {
         height: 40vh;
-<<<<<<< HEAD
         /* background-color: pink; */
-=======
         background-color: var(--theme-background-alt, #f8f8f8);
->>>>>>> 0028557737f43f446eb487c498faea26298bfeef
         margin-top: 2%;
         border: 1px solid var(--theme-foreground-fainter, #e0e0e0);
         border-radius: 20px;
