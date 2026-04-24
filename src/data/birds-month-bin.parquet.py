@@ -3,8 +3,8 @@ import duckdb
 duckdb.execute("""
   COPY (
     SELECT
-      ROUND("LONGITUDE"::DOUBLE, 1) AS lng_bin,
-      ROUND("LATITUDE"::DOUBLE, 1) AS lat_bin,
+      "LONGITUDE" AS lng_bin,
+      "LATITUDE" AS lat_bin,
       COUNT(*)::INTEGER AS count,
       EXTRACT(month FROM "OBSERVATION DATE")::INTEGER AS month
     FROM read_parquet('src/data/month-*.parquet')
@@ -15,3 +15,6 @@ duckdb.execute("""
     ORDER BY month, lat_bin, lng_bin
   ) TO '/dev/stdout' (FORMAT PARQUET)
 """)
+
+      # ROUND("LONGITUDE"::DOUBLE, 1) AS lng_bin,
+      # ROUND("LATITUDE"::DOUBLE, 1) AS lat_bin,
