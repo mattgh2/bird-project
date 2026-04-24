@@ -51,6 +51,13 @@ toc: false
 
     // Map canvas — initially shows all pre-aggregated data
     const mapCanvas = BirdMap(birds_clean);
+    const tableNode = testview(birds_raw_clean, 1000);
+
+    tableNode.onSelect = (commonName) => {
+      if (!commonName) { mapCanvas.highlight(null); return; }
+      const pts = aggregateForMap(birds_raw_clean.filter(d => d.common_name === commonName));
+      mapCanvas.highlight(pts);
+    };
 
     // Month slider widget
     const dateSliderNode = (() => {
@@ -124,20 +131,23 @@ toc: false
         showingAll = true;
         label.textContent = "All months";
         btn.textContent = "Filter by month ›";
-        //countEl.textContent = `${birds_raw_clean.length.toLocaleString()} total observations`;
         mapCanvas.update(birds_clean);
+        tableNode.update(birds_raw_clean);
       }
 
       function applyMonth(idx) {
         showingAll = false;
-        const {ts, month} = uniqueMonths[idx];
+        const {ts, endTs, month} = uniqueMonths[idx];
         label.textContent = fmtMonth(ts);
         btn.textContent = "Show all";
         const monthNum = month + 1; // uniqueMonths uses 0-indexed getUTCMonth(); birds_month_clean uses 1-indexed
         const filtered = birds_month_clean.filter(d => Number(d.month) === monthNum);
-        const total = filtered.reduce((sum, d) => sum + Number(d.count), 0);
-        //countEl.textContent = `${total.toLocaleString()} observation${total !== 1 ? "s" : ""}`;
         mapCanvas.update(filtered);
+        const rawFiltered = birds_raw_clean.filter(d => {
+          const t = Number(d.observation_date);
+          return t >= ts && t < endTs;
+        });
+        tableNode.update(rawFiltered);
       }
 
       applyAll();
@@ -178,7 +188,7 @@ toc: false
     </div>
 </div>
 <div class="below-main full-width-output">
-    ${testview(birds_raw_clean, 1000)}
+    ${tableNode}
 </div>
 
 <style>
