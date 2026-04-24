@@ -124,9 +124,8 @@ def main():
     else:
         parquets = [
                 parquet for parquet in manifest
-                if re.search(r"US[^-].+", parquet)
+                if re.search(r"US[^-].*", parquet)
                 # if re.search(r"US-.+", parquet)
-                if re.search(r"US[^-]", parquet)
         ]
 
     if (args.reset_index):

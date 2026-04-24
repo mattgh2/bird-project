@@ -19,6 +19,7 @@ duckdb.execute("""
       "OBSERVATION DATE" AS observation_date,
       "DURATION MINUTES" AS duration_minutes
     FROM read_parquet('src/data/month-*.parquet')
+    LIMIT 10000
   ) TO '/dev/stdout' (FORMAT PARQUET)
 """)
 # import duckdb
