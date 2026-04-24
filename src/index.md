@@ -15,7 +15,7 @@ toc: false
     <div class="main-left"> 
         <div class="main-left-top"> 
         <div>
-        ${BirdMap(birds)}
+        ${BirdMap(birds_clean)}
         </div>
         </div>
         <div class="main-left-bottom"> 

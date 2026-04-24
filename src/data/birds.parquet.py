@@ -14,12 +14,12 @@ duckdb.execute("""
       "STATE" AS state,
       "COUNTY" AS county,
       "LOCALITY" AS locality,
-      "LONGITUDE" AS longitude,
-      "LATITUDE" AS latitude,
+      "LONGITUDE" AS lng,
+      "LATITUDE" AS lat,
       "OBSERVATION DATE" AS observation_date,
       "DURATION MINUTES" AS duration_minutes
     FROM read_parquet('src/data/month-*.parquet')
-    LIMIT 10000
+    USING SAMPLE 50000 ROWS (reservoir, 42)
   ) TO '/dev/stdout' (FORMAT PARQUET)
 """)
 # import duckdb
