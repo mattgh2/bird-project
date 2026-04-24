@@ -34,13 +34,8 @@ toc: false
         </div>
     </div>
 </div>
-<<<<<<< HEAD
 <div class="below-main full-width-output">
-    ${testview(birds_clean, 1000)}
-=======
-<div class="below-main">
-    ${testview(birds_raw_clean)}
->>>>>>> 2977dfeb5ab8e430463e0e8790be0fd3214cd0f8
+    ${testview(birds_raw_clean, 1000)}
 </div>
 
 <style>
