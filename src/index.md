@@ -5,12 +5,15 @@ toc: false
     import {BirdMap} from "./components/birdmap.js";
     import {testview} from "./components/testview.js";
 
+    // full data with binning to reduce size.
     const birds_agg = await FileAttachment("data/birds-agg.parquet").parquet();
     const birds_clean = birds_agg.toArray().map(d => d.toJSON());
 
+    // No aggregation, but limited to 10k samples
     const birds_raw = await FileAttachment("data/birds.parquet").parquet();
     const birds_raw_clean = birds_raw.toArray().map(d => d.toJSON());
 
+    // full data with binning specifically for display of each month.
     const birds_month_bins = await FileAttachment("data/birds-month-bin.parquet").parquet();
     const birds_month_clean = birds_month_bins.toArray().map(d => d.toJSON());
 
@@ -140,9 +143,11 @@ toc: false
         const {ts, endTs, month} = uniqueMonths[idx];
         label.textContent = fmtMonth(ts);
         btn.textContent = "Show all";
-        const monthNum = month + 1; // uniqueMonths uses 0-indexed getUTCMonth(); birds_month_clean uses 1-indexed
+        // uniqueMonths uses 0-indexed getUTCMonth(); birds_month_clean uses 1-indexed
+        const monthNum = month + 1; 
         const filtered = birds_month_clean.filter(d => Number(d.month) === monthNum);
         mapCanvas.update(filtered);
+        console.log(filtered.length)
         const rawFiltered = birds_raw_clean.filter(d => {
           const t = Number(d.observation_date);
           return t >= ts && t < endTs;
