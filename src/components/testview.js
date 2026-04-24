@@ -12,10 +12,28 @@ export function testview(data, maxRows = 1000) {
   const container = d3.create("div")
     .attr("class", "bird-table-wrap");
 
-  const search = container.append("input")
+  const controlRow = container.append("div")
+    .attr("class", "bird-controls");
+
+  const search = controlRow.append("input")
     .attr("type", "search")
     .attr("placeholder", "Search bird name...")
     .attr("class", "bird-search");
+
+  const dayWrap = controlRow.append("div")
+    .attr("class", "bird-day-wrap");
+
+  const dayLabel = dayWrap.append("span")
+    .attr("class", "bird-day-label")
+    .text("All days");
+
+  const daySlider = dayWrap.append("input")
+    .attr("type", "range")
+    .attr("class", "bird-day-slider")
+    .attr("min", 0)
+    .attr("max", 31)
+    .attr("value", 0)
+    .attr("step", 1);
 
   const count = container.append("div")
     .attr("class", "bird-count");
@@ -49,6 +67,7 @@ export function testview(data, maxRows = 1000) {
     .text(d => d[0]);
 
   let selectedName = null;
+  let selectedDay = 0; // 0 = all days
 
   function render(filteredRows) {
     const shown = filteredRows.slice(0, maxRows);
@@ -77,19 +96,30 @@ export function testview(data, maxRows = 1000) {
 
   let baseRows = rows;
 
-  function applySearch() {
+  function applyFilters() {
     const q = search.property("value").trim().toLowerCase();
-    render(q ? baseRows.filter(d => (d.common_name ?? "").toLowerCase().includes(q)) : baseRows);
+    let filtered = baseRows;
+    if (selectedDay > 0) {
+      filtered = filtered.filter(d => new Date(Number(d.observation_date)).getUTCDate() === selectedDay);
+    }
+    if (q) filtered = filtered.filter(d => (d.common_name ?? "").toLowerCase().includes(q));
+    render(filtered);
   }
 
   render(baseRows);
 
-  search.on("input", applySearch);
+  search.on("input", applyFilters);
+
+  daySlider.on("input", function() {
+    selectedDay = +this.value;
+    dayLabel.text(selectedDay === 0 ? "All days" : `Day ${selectedDay}`);
+    applyFilters();
+  });
 
   const node = container.node();
   node.update = function(newRows) {
     baseRows = [...newRows].sort((a, b) => Number(a.observation_date) - Number(b.observation_date));
-    applySearch();
+    applyFilters();
   };
 
   container.append("style").text(`
@@ -103,10 +133,17 @@ export function testview(data, maxRows = 1000) {
       background: var(--theme-background, #fff);
     }
 
-    .bird-search {
-      box-sizing: border-box;
-      width: 100%;
+    .bird-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
       margin-bottom: 6px;
+    }
+
+    .bird-search {
+      flex: 1 1 0;
+      min-width: 0;
+      box-sizing: border-box;
       padding: 6px 8px;
       border: 1px solid var(--theme-foreground-fainter, #ccc);
       border-radius: 6px;
@@ -117,6 +154,26 @@ export function testview(data, maxRows = 1000) {
 
     .bird-search:focus {
       border-color: var(--theme-foreground-muted, #888);
+    }
+
+    .bird-day-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      flex-shrink: 0;
+      width: 120px;
+    }
+
+    .bird-day-label {
+      font-size: 11px;
+      color: var(--theme-foreground-muted, #888);
+      white-space: nowrap;
+    }
+
+    .bird-day-slider {
+      width: 100%;
+      cursor: pointer;
     }
 
     .bird-count {
