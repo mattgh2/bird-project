@@ -4,8 +4,12 @@ toc: false
 ```js
     import {BirdMap} from "./components/birdmap.js";
     import {testview} from "./components/testview.js";
-    const birds = await FileAttachment("data/birds.parquet").parquet();
-    const birds_clean = birds.toArray().map(d => d.toJSON());
+
+    const birds_agg = await FileAttachment("data/birds-agg.parquet").parquet();
+    const birds_clean = birds_agg.toArray().map(d => d.toJSON());
+
+    const birds_raw = await FileAttachment("data/birds.parquet").parquet();
+    const birds_raw_clean = birds_raw.toArray().map(d => d.toJSON());
 ```
 
 <div class="hero">
@@ -31,7 +35,7 @@ toc: false
     </div>
 </div>
 <div class="below-main">
-    ${testview(birds_clean)}
+    ${testview(birds_raw_clean)}
 </div>
 
 <style>

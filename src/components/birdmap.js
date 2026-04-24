@@ -33,13 +33,16 @@ export function BirdMap(data) {
   ctx.lineWidth = 0.5;
   ctx.stroke();
 
-  // Scale dot opacity by count
+  const maxCount = Math.max(...data.map(d => d.count));
+  const rScale = d3.scaleSqrt().domain([1, maxCount]).range([2, 10]);
+
   for (const d of data) {
-    const p = projection([d.lng, d.lat]);
+    const p = projection([d.lng_bin, d.lat_bin]);
     if (!p) continue;
+    const opacity = 0.2 + 0.7 * (d.count / maxCount);
     ctx.beginPath();
-    ctx.arc(p[0], p[1], 3, 0, 2 * Math.PI);
-    ctx.fillStyle = "rgba(30, 100, 200, 0.5)";
+    ctx.arc(p[0], p[1], rScale(d.count), 0, 2 * Math.PI);
+    ctx.fillStyle = `rgba(30, 100, 200, ${opacity})`;
     ctx.fill();
   }
 

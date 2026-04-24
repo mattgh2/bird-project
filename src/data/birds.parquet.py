@@ -19,15 +19,6 @@ duckdb.execute("""
       "OBSERVATION DATE" AS observation_date,
       "DURATION MINUTES" AS duration_minutes
     FROM read_parquet('src/data/month-*.parquet')
-    USING SAMPLE 50000 ROWS (reservoir, 42)
+    USING SAMPLE 100000 ROWS (reservoir, 42)
   ) TO '/dev/stdout' (FORMAT PARQUET)
 """)
-# import duckdb
-#
-# duckdb.execute("""
-#   COPY (
-#     SELECT ROUND(LATITUDE, 1) AS lat, ROUND(LONGITUDE, 1) AS lng, COUNT(*)::INTEGER AS count
-#     FROM read_parquet('src/data/month-*.parquet')
-#     GROUP BY lat, lng
-#   ) TO '/dev/stdout' (FORMAT PARQUET)
-# """)
