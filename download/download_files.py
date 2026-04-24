@@ -110,7 +110,6 @@ def main():
     # with open("eBirdCountryMapping.json", 'r') as f:
     #     ebird_country_mapping = json.load(f)
 
-
     args = parser.parse_args()
 
     parquets: list[str] = []
@@ -126,6 +125,8 @@ def main():
         parquets = [
                 parquet for parquet in manifest
                 if re.search(r"US[^-].+", parquet)
+                # if re.search(r"US-.+", parquet)
+                if re.search(r"US[^-]", parquet)
         ]
 
     if (args.reset_index):
