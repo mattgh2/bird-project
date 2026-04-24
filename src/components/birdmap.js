@@ -52,7 +52,6 @@ export function BirdMap(data) {
 
   function redraw() {
     drawBase();
-    drawPoints(currentPoints);
     if (highlightPoints && highlightPoints.length) {
       const maxCount = Math.max(...highlightPoints.map(d => d.count));
       const rScale = d3.scaleSqrt().domain([1, maxCount]).range([3, 12]);
@@ -64,6 +63,8 @@ export function BirdMap(data) {
         ctx.fillStyle = `rgba(220, 30, 30, ${0.5 + 0.5 * (d.count / maxCount)})`;
         ctx.fill();
       }
+    } else {
+      drawPoints(currentPoints);
     }
   }
 

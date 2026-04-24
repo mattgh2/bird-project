@@ -56,10 +56,18 @@ toc: false
     const mapCanvas = BirdMap(birds_clean);
     const tableNode = testview(birds_raw_clean, 1000);
 
-    tableNode.onSelect = (commonName) => {
-      if (!commonName) { mapCanvas.highlight(null); return; }
-      const pts = aggregateForMap(birds_raw_clean.filter(d => d.common_name === commonName));
+    let currentRaw = birds_raw_clean;
+    let currentSelection = null;
+
+    function refreshHighlight() {
+      if (!currentSelection) { mapCanvas.highlight(null); return; }
+      const pts = aggregateForMap(currentRaw.filter(d => d.common_name === currentSelection));
       mapCanvas.highlight(pts);
+    }
+
+    tableNode.onSelect = (commonName) => {
+      currentSelection = commonName;
+      refreshHighlight();
     };
 
     // Month slider widget
@@ -136,6 +144,8 @@ toc: false
         btn.textContent = "Filter by month ›";
         mapCanvas.update(birds_clean);
         tableNode.update(birds_raw_clean);
+        currentRaw = birds_raw_clean;
+        refreshHighlight();
       }
 
       function applyMonth(idx) {
@@ -147,12 +157,13 @@ toc: false
         const monthNum = month + 1; 
         const filtered = birds_month_clean.filter(d => Number(d.month) === monthNum);
         mapCanvas.update(filtered);
-        console.log(filtered.length)
         const rawFiltered = birds_raw_clean.filter(d => {
           const t = Number(d.observation_date);
           return t >= ts && t < endTs;
         });
         tableNode.update(rawFiltered);
+        currentRaw = rawFiltered;
+        refreshHighlight();
       }
 
       applyAll();
