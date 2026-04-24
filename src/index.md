@@ -5,6 +5,8 @@ toc: false
     import {BirdMap} from "./components/birdmap.js";
     import {testview} from "./components/testview.js";
     import {StateBarChart} from "./components/statebarchart.js";
+    import {LineChart} from "./components/linechart.js";
+    import {HeatMap} from "./components/heatmap.js";
 
     // full data with binning to reduce size.
     const birds_agg = await FileAttachment("data/birds-agg.parquet").parquet();
@@ -23,6 +25,12 @@ toc: false
 
     const species_state = await FileAttachment("data/birds-species-state.parquet").parquet();
     const species_state_clean = species_state.toArray().map(d => d.toJSON());
+
+    const species_month_obvcount = await FileAttachment("data/birds-species-month-obvcount.parquet").parquet();
+    const species_month_obvcount_clean = species_month_obvcount.toArray().map(d => d.toJSON());
+
+    const state_month_obvcount = await FileAttachment("data/birds-state-month-obvcount.parquet").parquet();
+    const state_month_obvcount_clean = state_month_obvcount.toArray().map(d => d.toJSON());
 
 
     // Aggregate raw rows into {lat_bin, lng_bin, count} for the map
@@ -64,6 +72,8 @@ toc: false
     const mapCanvas = BirdMap(birds_clean);
     const tableNode = testview(birds_raw_clean, 1000);
     const barChartNode = StateBarChart(species_clean, species_state_clean);
+    const lineChartNode = LineChart(species_month_obvcount_clean);
+    const heatMapNode = HeatMap(state_month_obvcount_clean);
 
     let currentRaw = birds_raw_clean;
     let currentSelection = null;
@@ -81,6 +91,7 @@ toc: false
       currentSelection = commonName;
       currentSelectedRow = row;
       refreshHighlight();
+      lineChartNode.setSpecies(commonName);
     };
 
     // Month slider widget
@@ -212,8 +223,10 @@ toc: false
         <div class="main-right-top"> 
         </div>
         <div class="main-right-middle"> 
+        ${heatMapNode}
         </div>
         <div class="main-right-bottom"> 
+        ${lineChartNode}
         </div>
     </div>
 </div>
