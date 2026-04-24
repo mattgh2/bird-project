@@ -11,6 +11,9 @@ toc: false
     const birds_raw = await FileAttachment("data/birds.parquet").parquet();
     const birds_raw_clean = birds_raw.toArray().map(d => d.toJSON());
 
+    const birds_month_bins = await FileAttachment("data/birds-month-bins.parquet").parquet();
+    const birds_month_clean = birds_month_bins.toArray().map(d => d.toJSON());
+
     // Aggregate raw rows into {lat_bin, lng_bin, count} for the map
     function aggregateForMap(rows) {
       const bins = new Map();
