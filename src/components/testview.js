@@ -20,6 +20,18 @@ export function testview(data, maxRows = 1000) {
     .attr("placeholder", "Search bird name...")
     .attr("class", "bird-search");
 
+  const clearBtn = controlRow.append("button")
+    .attr("type", "button")
+    .attr("class", "bird-clear-btn")
+    .style("display", "none")
+    .on("click", () => {
+      if (!selectedName) return;
+      selectedName = null;
+      tbody.selectAll("tr").classed("bird-row-selected", false);
+      updateClearBtn();
+      if (node.onSelect) node.onSelect(null);
+    });
+
   const dayWrap = controlRow.append("div")
     .attr("class", "bird-day-wrap");
 
@@ -69,6 +81,14 @@ export function testview(data, maxRows = 1000) {
   let selectedName = null;
   let selectedDay = 0; // 0 = all days
 
+  function updateClearBtn() {
+    if (selectedName) {
+      clearBtn.style("display", "").text(`Clear: ${selectedName} ✕`);
+    } else {
+      clearBtn.style("display", "none");
+    }
+  }
+
   function render(filteredRows) {
     const shown = filteredRows.slice(0, maxRows);
 
@@ -85,6 +105,7 @@ export function testview(data, maxRows = 1000) {
         const name = d.common_name ?? null;
         selectedName = selectedName === name ? null : name;
         tbody.selectAll("tr").classed("bird-row-selected", row => row.common_name === selectedName);
+        updateClearBtn();
         if (node.onSelect) node.onSelect(selectedName);
       });
 
@@ -126,6 +147,8 @@ export function testview(data, maxRows = 1000) {
     .bird-table-wrap {
       width: 100%;
       height: 100%;
+      box-sizing: border-box;
+      padding: 14px 16px;
       display: flex;
       flex-direction: column;
       font: 14px var(--sans-serif, sans-serif);
@@ -136,15 +159,16 @@ export function testview(data, maxRows = 1000) {
     .bird-controls {
       display: flex;
       align-items: center;
-      gap: 10px;
-      margin-bottom: 6px;
+      gap: 16px;
+      margin-bottom: 8px;
     }
 
     .bird-search {
       flex: 1 1 0;
       min-width: 0;
       box-sizing: border-box;
-      padding: 6px 8px;
+      height: 32px;
+      padding: 0 10px;
       border: 1px solid var(--theme-foreground-fainter, #ccc);
       border-radius: 6px;
       background: var(--theme-background, #fff);
@@ -156,28 +180,57 @@ export function testview(data, maxRows = 1000) {
       border-color: var(--theme-foreground-muted, #888);
     }
 
+    .bird-clear-btn {
+      flex-shrink: 0;
+      height: 32px;
+      padding: 0 12px;
+      font: inherit;
+      font-size: 12px;
+      color: rgb(180, 30, 30);
+      background: rgba(220, 30, 30, 0.1);
+      border: 1px solid rgba(220, 30, 30, 0.35);
+      border-radius: 6px;
+      cursor: pointer;
+      white-space: nowrap;
+      max-width: 240px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .bird-clear-btn:hover {
+      background: rgba(220, 30, 30, 0.18);
+      border-color: rgba(220, 30, 30, 0.55);
+    }
+
     .bird-day-wrap {
       display: flex;
-      flex-direction: column;
+      flex-direction: row;
       align-items: center;
-      gap: 2px;
+      gap: 10px;
       flex-shrink: 0;
-      width: 120px;
+      height: 32px;
+      padding: 0 12px;
+      border: 1px solid var(--theme-foreground-fainter, #ccc);
+      border-radius: 6px;
+      background: var(--theme-background, #fff);
     }
 
     .bird-day-label {
-      font-size: 11px;
+      font-size: 12px;
       color: var(--theme-foreground-muted, #888);
       white-space: nowrap;
+      min-width: 56px;
+      text-align: right;
     }
 
     .bird-day-slider {
-      width: 100%;
+      width: 140px;
       cursor: pointer;
+      margin: 0;
     }
 
     .bird-count {
-      margin-bottom: 6px;
+      margin-bottom: 8px;
       font-size: 12px;
       color: var(--theme-foreground-muted, #666);
     }
