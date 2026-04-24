@@ -5,10 +5,11 @@ toc: false
     import {BirdMap} from "./components/birdmap.js";
     const birds = await FileAttachment("data/birds.parquet").parquet();
 ```
+
 <div class="hero">
   <h1>bird-vis</h1>
 </div>
-``` <div class="main">
+<div class="main">
     <div class="main-left"> 
         <div class="main-left-top"> 
         <div>
@@ -89,39 +90,28 @@ toc: false
         gap: 2%;
     }
 
-    .main-left-top, .main-left-bottom {
-        border: 1px solid grey;
-        border-radius: 20px;
+    .main-left-top, .main-left-bottom,
+    .main-right-top, .main-right-middle, .main-right-bottom {
+        border: 1px solid var(--theme-foreground-fainter, #e0e0e0);
+        border-radius: 12px;
+        background-color: var(--theme-background-alt, #f8f8f8);
+        box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+        overflow: hidden;
     }
 
     .main-left-top {
         width: 100%;
         height: 75%;
-        background-color: blue;
     }
 
     .main-left-bottom {
         width: 100%;
         height: 25%;
-        background-color: pink;
     }
 
     .main-right-top, .main-right-middle, .main-right-bottom {
         width: 100%;
         height: 33%;
-        border: 1px solid grey;
-        border-radius: 20px;
-    }
-
-    .main-right-top {
-        background-color: pink;
-    }
-    .main-right-middle {
-        background-color: blue;
-    }
-
-    .main-right-bottom {
-        background-color: green;
     }
 
     .hero {
@@ -167,44 +157,3 @@ toc: false
 </style>
 ```
 
-<style>
-.hero {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  font-family: var(--sans-serif);
-  margin: 4rem 0 8rem;
-  text-wrap: balance;
-  text-align: center;
-}
-
-.hero h1 {
-  margin: 1rem 0;
-  padding: 1rem 0;
-  max-width: none;
-  font-size: 14vw;
-  font-weight: 900;
-  line-height: 1;
-  background: linear-gradient(30deg, var(--theme-foreground-focus), currentColor);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.hero h2 {
-  margin: 0;
-  max-width: 34em;
-  font-size: 20px;
-  font-style: initial;
-  font-weight: 500;
-  line-height: 1.5;
-  color: var(--theme-foreground-muted);
-}
-
-@media (min-width: 640px) {
-  .hero h1 {
-    font-size: 90px;
-  }
-}
-
-</style>

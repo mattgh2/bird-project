@@ -2,7 +2,8 @@
 /dist/
 node_modules/
 yarn-error.log
-data
+src/data/*.parquet
+src/data/*.csv
 start
 download_fails
 archived_data
