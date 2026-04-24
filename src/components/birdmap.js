@@ -47,13 +47,37 @@ export function BirdMap(data) {
     }
   }
 
-  function render(pointData) {
+  let currentPoints = data;
+  let highlightPoints = null;
+
+  function redraw() {
     drawBase();
-    drawPoints(pointData);
+    drawPoints(currentPoints);
+    if (highlightPoints && highlightPoints.length) {
+      const maxCount = Math.max(...highlightPoints.map(d => d.count));
+      const rScale = d3.scaleSqrt().domain([1, maxCount]).range([3, 12]);
+      for (const d of highlightPoints) {
+        const p = projection([d.lng_bin, d.lat_bin]);
+        if (!p) continue;
+        ctx.beginPath();
+        ctx.arc(p[0], p[1], rScale(d.count), 0, 2 * Math.PI);
+        ctx.fillStyle = `rgba(220, 30, 30, ${0.5 + 0.5 * (d.count / maxCount)})`;
+        ctx.fill();
+      }
+    }
   }
 
-  render(data);
-  canvas.update = render;
+  redraw();
+
+  canvas.update = function(pointData) {
+    currentPoints = pointData;
+    redraw();
+  };
+
+  canvas.highlight = function(pointData) {
+    highlightPoints = pointData;
+    redraw();
+  };
 
   return canvas;
 }

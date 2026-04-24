@@ -48,6 +48,8 @@ export function testview(data, maxRows = 1000) {
     .join("th")
     .text(d => d[0]);
 
+  let selectedName = null;
+
   function render(filteredRows) {
     const shown = filteredRows.slice(0, maxRows);
 
@@ -57,7 +59,15 @@ export function testview(data, maxRows = 1000) {
 
     const tr = tbody.selectAll("tr")
       .data(shown)
-      .join("tr");
+      .join("tr")
+      .classed("bird-row-selected", d => d.common_name === selectedName)
+      .style("cursor", "pointer")
+      .on("click", function(event, d) {
+        const name = d.common_name ?? null;
+        selectedName = selectedName === name ? null : name;
+        tbody.selectAll("tr").classed("bird-row-selected", row => row.common_name === selectedName);
+        if (node.onSelect) node.onSelect(selectedName);
+      });
 
     tr.selectAll("td")
       .data(row => columns.map(([_, value]) => value(row)))
@@ -65,17 +75,22 @@ export function testview(data, maxRows = 1000) {
       .text(d => d);
   }
 
-  render(rows);
+  let baseRows = rows;
 
-  search.on("input", event => {
-    const q = event.target.value.trim().toLowerCase();
+  function applySearch() {
+    const q = search.property("value").trim().toLowerCase();
+    render(q ? baseRows.filter(d => (d.common_name ?? "").toLowerCase().includes(q)) : baseRows);
+  }
 
-    const filtered = q
-      ? rows.filter(d => (d.common_name ?? "").toLowerCase().includes(q))
-      : rows;
+  render(baseRows);
 
-    render(filtered);
-  });
+  search.on("input", applySearch);
+
+  const node = container.node();
+  node.update = function(newRows) {
+    baseRows = [...newRows].sort((a, b) => Number(a.observation_date) - Number(b.observation_date));
+    applySearch();
+  };
 
   container.append("style").text(`
     .bird-table-wrap {
@@ -152,7 +167,11 @@ export function testview(data, maxRows = 1000) {
     .bird-table tbody tr:hover {
       background: var(--theme-background-alt, #f5f5f5);
     }
+
+    .bird-row-selected, .bird-row-selected:hover {
+      background: rgba(220, 30, 30, 0.12) !important;
+    }
   `);
 
-  return container.node();
+  return node;
 }
