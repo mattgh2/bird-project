@@ -86,7 +86,7 @@ toc: false
     }
     .below-main {
         height: 40vh;
-        background-color: pink;
+        /* background-color: pink; */
         margin-top: 2%;
         border: 2px solid grey;
         border-radius: 20px;
