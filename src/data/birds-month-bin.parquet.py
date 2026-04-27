@@ -14,7 +14,7 @@ con.execute(f"""
         WHEN "OBSERVATION COUNT" = 'X' THEN 1
         ELSE COALESCE(TRY_CAST("OBSERVATION COUNT" AS DOUBLE), 1)
       END)::DOUBLE AS avg_flock
-    FROM read_parquet('src/data/month-*.parquet')
+    FROM read_parquet('r2://bird-parquets/month-*.parquet')
     WHERE "LONGITUDE" IS NOT NULL
       AND "LATITUDE" IS NOT NULL
       AND "OBSERVATION DATE" IS NOT NULL

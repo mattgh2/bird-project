@@ -11,7 +11,7 @@ get_db().execute("""
           ELSE COALESCE(TRY_CAST("OBSERVATION COUNT" AS INTEGER), 1)
         END
       )::INTEGER AS observation_count
-    FROM read_parquet('src/data/month-*.parquet')
+    FROM read_parquet('r2://bird-parquets/month-*.parquet')
     WHERE "STATE" IS NOT NULL
       AND "OBSERVATION DATE" IS NOT NULL
     GROUP BY 1, 2

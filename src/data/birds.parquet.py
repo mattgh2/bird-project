@@ -19,7 +19,7 @@ con.execute("""
       "LATITUDE" AS lat,
       "OBSERVATION DATE" AS observation_date,
       "DURATION MINUTES" AS duration_minutes
-    FROM read_parquet('src/data/month-*.parquet')
+    FROM read_parquet('r2://bird-parquets/month-*.parquet')
     USING SAMPLE 100000 ROWS (reservoir, 42)
   ) TO '/dev/stdout' (FORMAT PARQUET)
 """)
