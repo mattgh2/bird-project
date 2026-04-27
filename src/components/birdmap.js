@@ -1,5 +1,6 @@
 import * as d3 from "npm:d3";
 import * as topojson from "npm:topojson-client";
+import * as L from "npm:leaflet";
 
 const us = await fetch("https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json")
   .then(r => r.json());
@@ -8,6 +9,16 @@ const states = topojson.feature(us, us.objects.states);
 const stateFeatures = states.features;
 const counties = topojson.feature(us, us.objects.counties);
 const countyFeatures = counties.features;
+
+// Inject Leaflet CSS once (npm import gives us JS only)
+(() => {
+  if (document.querySelector('link[data-leaflet-css]')) return;
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+  link.setAttribute("data-leaflet-css", "");
+  document.head.appendChild(link);
+})();
 
 // --- Hex grid utilities (pointy-top) ---
 const HEX_RADIUS = 7;
@@ -101,7 +112,24 @@ const highlightBivariate = makeBivariate(
   "#9e9ac8", "#3f007d"   // high flock: light purple → deep purple
 );
 
-export function BirdMap(data) {
+const FIPS_TO_USPS = {
+  "01": "AL", "02": "AK", "04": "AZ", "05": "AR", "06": "CA",
+  "08": "CO", "09": "CT", "10": "DE", "11": "DC", "12": "FL",
+  "13": "GA", "15": "HI", "16": "ID", "17": "IL", "18": "IN",
+  "19": "IA", "20": "KS", "21": "KY", "22": "LA", "23": "ME",
+  "24": "MD", "25": "MA", "26": "MI", "27": "MN", "28": "MS",
+  "29": "MO", "30": "MT", "31": "NE", "32": "NV", "33": "NH",
+  "34": "NJ", "35": "NM", "36": "NY", "37": "NC", "38": "ND",
+  "39": "OH", "40": "OK", "41": "OR", "42": "PA", "44": "RI",
+  "45": "SC", "46": "SD", "47": "TN", "48": "TX", "49": "UT",
+  "50": "VT", "51": "VA", "53": "WA", "54": "WV", "55": "WI",
+  "56": "WY",
+};
+
+export function BirdMap(data, options = {}) {
+  const loadStateObservations = options.loadStateObservations;
+  const onObservationsLoaded = options.onObservationsLoaded;
+  const onStateClosed = options.onStateClosed;
   const width = 960;
   const height = 600;
 
@@ -127,6 +155,137 @@ export function BirdMap(data) {
   const ctx = canvas.getContext("2d");
   const darkMode = window.matchMedia("(prefers-color-scheme: dark)").matches;
 
+  // OSM container — shown only while a state is selected.
+  const osmContainer = document.createElement("div");
+  osmContainer.style.cssText = `
+    position: relative;
+    z-index: 0;
+    width: 100%;
+    aspect-ratio: ${width} / ${height};
+    display: none;
+  `;
+  let leafletMap = null;
+  let observationLayer = null;
+  let currentObservations = null;
+
+  function showOsmForState(feature, observations) {
+    const [[w, s], [e, n]] = d3.geoBounds(feature);
+    canvas.style.display = "none";
+    legend.style.display = "none";
+    tooltip.style.display = "none";
+    osmContainer.style.display = "block";
+
+    if (leafletMap) { leafletMap.remove(); leafletMap = null; }
+    const stateBounds = L.latLngBounds([[s, w], [n, e]]);
+    leafletMap = L.map(osmContainer, {
+      zoomControl: true,
+      maxBounds: stateBounds.pad(0.1),
+      maxBoundsViscosity: 1.0,
+    });
+    L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 18,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+    }).addTo(leafletMap);
+    leafletMap.fitBounds(stateBounds);
+
+    // Inverse mask: world ring as outer, state ring(s) as holes — everything
+    // outside the state is painted over so only the state's tiles remain visible.
+    const outerRing = [[-85, -180], [-85, 180], [85, 180], [85, -180]];
+    const stateRings = [];
+    const geom = feature.geometry;
+    const polys = geom.type === "Polygon" ? [geom.coordinates] : geom.coordinates;
+    for (const poly of polys) {
+      stateRings.push(poly[0].map(([lng, lat]) => [lat, lng]));
+    }
+    L.polygon([outerRing, ...stateRings], {
+      stroke: false,
+      fillColor: darkMode ? "#0f0f0f" : "#ffffff",
+      fillOpacity: 1.0,
+      interactive: false,
+    }).addTo(leafletMap);
+    L.polyline(stateRings, {
+      color: darkMode ? "#888" : "#444",
+      weight: 1.2,
+      opacity: 0.9,
+      interactive: false,
+    }).addTo(leafletMap);
+
+    renderOsmMarkers(observations);
+
+    // Container just flipped from display:none — re-fit once the browser has
+    // laid it out, otherwise Leaflet measures 0×0 and falls back to a world view.
+    requestAnimationFrame(() => {
+      if (!leafletMap) return;
+      leafletMap.invalidateSize();
+      leafletMap.fitBounds(stateBounds);
+    });
+  }
+
+  function hideOsm() {
+    if (leafletMap) { leafletMap.remove(); leafletMap = null; }
+    observationLayer = null;
+    currentObservations = null;
+    osmContainer.style.display = "none";
+    canvas.style.display = "block";
+    legend.style.display = "flex";
+  }
+
+  const fmtDate = ts => ts
+    ? new Date(Number(ts)).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })
+    : null;
+
+  function renderOsmMarkers(observations, highlightSpecies = null, primaryRow = null) {
+    if (!leafletMap) return;
+    if (observationLayer) { observationLayer.remove(); observationLayer = null; }
+    currentObservations = observations || null;
+    if (!observations || !observations.length) return;
+
+    const maxC = Math.max(2, d3.max(observations, d => d.observation_count || 1));
+    const radius = d3.scaleSqrt().domain([1, maxC]).range([2, 14]).clamp(true);
+    // Canvas renderer scales to tens of thousands of markers; SVG would choke.
+    const renderer = L.canvas({ padding: 0.5 });
+    const hasHighlight = !!highlightSpecies;
+
+    observationLayer = L.layerGroup();
+
+    // Pass 1: all observations, dimmed when a primary row is selected so the green dot stands out
+    const hasPrimary = !!(primaryRow?.lat && primaryRow?.lng);
+    for (const d of observations) {
+      const count = d.observation_count || 1;
+      L.circleMarker([d.lat, d.lng], {
+        renderer,
+        radius: radius(count),
+        color:       hasPrimary ? "#999" : "#7f1d1d",
+        fillColor:   hasPrimary ? "#bbb" : "#dc2626",
+        fillOpacity: hasPrimary ? 0.12  : 0.45,
+        weight:      hasPrimary ? 0.2   : 0.4,
+        opacity:     hasPrimary ? 0.35  : 0.75,
+      }).bindTooltip(
+        `${d.common_name || "—"} · ${count} bird${count === 1 ? "" : "s"}${fmtDate(d.observation_date) ? ` · ${fmtDate(d.observation_date)}` : ""}`,
+        { sticky: true }
+      ).addTo(observationLayer);
+    }
+
+    // Pass 2: primary observation — bright green, largest, always on top
+    if (primaryRow?.lat && primaryRow?.lng) {
+      const count = primaryRow.observation_count || 1;
+      L.circleMarker([primaryRow.lat, primaryRow.lng], {
+        renderer,
+        radius: radius(count) + 5,
+        color:       "#15803d",
+        fillColor:   "#22c55e",
+        fillOpacity: 0.95,
+        weight:      3,
+        opacity:     1,
+      }).bindTooltip(
+        `★ ${primaryRow.common_name || "—"} · ${count} bird${count === 1 ? "" : "s"}${fmtDate(primaryRow.observation_date) ? ` · ${fmtDate(primaryRow.observation_date)}` : ""}`,
+        { sticky: true }
+      ).addTo(observationLayer);
+    }
+
+    observationLayer.addTo(leafletMap);
+  }
+
   const backBtn = document.createElement("button");
   backBtn.textContent = "← Full View";
   backBtn.style.cssText = `
@@ -135,7 +294,7 @@ export function BirdMap(data) {
     background:${darkMode ? "rgba(30,30,30,0.92)" : "rgba(255,255,255,0.92)"};
     color:${darkMode ? "#eee" : "#222"};
     border:1px solid ${darkMode ? "#555" : "#ccc"};
-    border-radius:6px; cursor:pointer; z-index:10;
+    border-radius:6px; cursor:pointer; z-index:1001;
     box-shadow:0 1px 4px rgba(0,0,0,0.18);
   `;
 
@@ -143,11 +302,11 @@ export function BirdMap(data) {
     selectedState = null;
     currentCounties = [];
     tooltip.style.display = "none";
-    projection = d3.geoAlbersUsa().fitSize([width, height], states);
-    path = d3.geoPath(projection);
+    hideOsm();
     backBtn.style.display = "none";
     canvas.style.cursor = "pointer";
     redraw();
+    if (onStateClosed) onStateClosed();
   });
 
   let currentCounties = [];
@@ -231,7 +390,7 @@ export function BirdMap(data) {
     bivTitle.textContent = isHighlight ? "Species (→) × Flock (↑)" : "Density (→) × Flock (↑)";
   }
 
-  container.append(legend, canvas, backBtn, tooltip);
+  container.append(legend, canvas, osmContainer, backBtn, tooltip);
 
   function getDisplayPoints() {
     if (!selectedState || !currentPoints) return currentPoints;
@@ -319,7 +478,7 @@ export function BirdMap(data) {
 
   redraw();
 
-  canvas.addEventListener("click", (event) => {
+  canvas.addEventListener("click", async (event) => {
     if (selectedState) return;
     const rect = canvas.getBoundingClientRect();
     const scaleX = width / rect.width;
@@ -333,16 +492,26 @@ export function BirdMap(data) {
     if (!clicked) return;
 
     selectedState = clicked;
-    const statePrefix = String(selectedState.id).padStart(2, "0");
-    currentCounties = countyFeatures.filter(f => String(f.id).padStart(5, "0").startsWith(statePrefix));
-    projection = d3.geoAlbersUsa().fitSize([width, height], selectedState);
-    path = d3.geoPath(projection);
     backBtn.style.display = "block";
-    canvas.style.cursor = "default";
-    redraw();
+    canvas.style.cursor = "wait";
+
+    const stateCode = FIPS_TO_USPS[String(clicked.id).padStart(2, "0")];
+    let observations = null;
+    if (stateCode && loadStateObservations) {
+      try {
+        observations = await loadStateObservations(stateCode);
+      } catch (err) {
+        console.error(`Failed to load observations for ${stateCode}:`, err);
+      }
+    }
+
+    canvas.style.cursor = "pointer";
+    showOsmForState(selectedState, observations);
+    if (onObservationsLoaded) onObservationsLoaded(stateCode, observations || []);
   });
 
   canvas.addEventListener("mousemove", (event) => {
+    if (selectedState) { tooltip.style.display = "none"; return; }
     const rect = canvas.getBoundingClientRect();
     const cssX = event.clientX - rect.left;
     const cssY = event.clientY - rect.top;
@@ -350,8 +519,7 @@ export function BirdMap(data) {
     const cy = cssY * (height / rect.height);
     const coords = projection.invert([cx, cy]);
     if (!coords) { tooltip.style.display = "none"; return; }
-    const pool = selectedState ? currentCounties : stateFeatures;
-    const hit = pool.find(f => d3.geoContains(f, coords));
+    const hit = stateFeatures.find(f => d3.geoContains(f, coords));
     if (!hit) { tooltip.style.display = "none"; return; }
     tooltip.textContent = hit.properties.name;
     tooltip.style.left = (canvas.offsetLeft + cssX) + "px";
@@ -372,6 +540,29 @@ export function BirdMap(data) {
     highlightPoints = pointData;
     primaryPoint = primary;
     redraw();
+  };
+
+  let currentHighlightSpecies = null;
+  let currentPrimaryRow = null;
+
+  container.refreshObservations = async function() {
+    if (!selectedState || !loadStateObservations) return;
+    const stateCode = FIPS_TO_USPS[String(selectedState.id).padStart(2, "0")];
+    if (!stateCode) return;
+    try {
+      const observations = await loadStateObservations(stateCode);
+      renderOsmMarkers(observations, currentHighlightSpecies, currentPrimaryRow);
+      if (onObservationsLoaded) onObservationsLoaded(stateCode, observations || []);
+    } catch (err) {
+      console.error(`Failed to refresh observations for ${stateCode}:`, err);
+    }
+  };
+
+  container.highlightObservations = function(species, primaryRow) {
+    currentHighlightSpecies = species || null;
+    currentPrimaryRow = primaryRow || null;
+    if (!selectedState || !leafletMap) return;
+    renderOsmMarkers(currentObservations, currentHighlightSpecies, currentPrimaryRow);
   };
 
   return container;

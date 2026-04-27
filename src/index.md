@@ -37,6 +37,27 @@ toc: false
     const state_month_obvcount = await FileAttachment("data/birds-state-month-obvcount.parquet").parquet();
     const state_month_obvcount_clean = state_month_obvcount.toArray().map(d => d.toJSON());
 
+    // Filter state updated by the date slider below; read at click time by loadStateObservations.
+    let filterMonth = "all";
+    let filterDay = "all";
+
+    function hexEncode(str) {
+      return Array.from(new TextEncoder().encode(str))
+        .map(b => b.toString(16).padStart(2, "0"))
+        .join("");
+    }
+
+    async function loadStateObservations(stateCode) {
+      const month = filterMonth;
+      const day = filterDay;
+      const species = currentSelection || "all";
+      const speciesParam = species === "all" ? "all" : hexEncode(species);
+      const url = `/_file/data/birds-state-${stateCode}-${month}-${day}-${speciesParam}.json`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status} loading observations for ${stateCode}`);
+      return response.json();
+    }
+
 
     // Aggregate raw rows into {lat_bin, lng_bin, count, avg_flock} for the map
     const BIN_SIZE = 0.5;
@@ -77,8 +98,16 @@ toc: false
     })();
     const totalDays = Math.round((endDay - startDay) / ONE_DAY);
 
-    // Map canvas — initially shows all pre-aggregated data
-    const mapCanvas = BirdMap(birds_clean);
+    // Map canvas. Initially shows all pre-aggregated data
+    const mapCanvas = BirdMap(birds_clean, {
+      loadStateObservations,
+      onObservationsLoaded: (_stateCode, observations) => {
+        tableNode.update(observations);
+      },
+      onStateClosed: () => {
+        tableNode.update(currentRaw);
+      },
+    });
     const tableNode = testview(birds_raw_clean, 1000);
     const barChartNode = StateBarChart(species_clean, species_state_clean);
     const lineChartNode = LineChart(species_month_obvcount_clean);
@@ -89,11 +118,16 @@ toc: false
     let currentSelectedRow = null;
 
     function refreshHighlight() {
-      if (!currentSelection) { mapCanvas.highlight(null, null); return; }
+      if (!currentSelection) {
+        mapCanvas.highlight(null, null);
+        mapCanvas.highlightObservations(null, null);
+        return;
+      }
       const pts = aggregateForMap(currentRaw.filter(d => d.common_name === currentSelection));
       const primaryPts = currentSelectedRow ? aggregateForMap([currentSelectedRow]) : null;
       const primary = primaryPts && primaryPts.length ? primaryPts[0] : null;
       mapCanvas.highlight(pts, primary);
+      mapCanvas.highlightObservations(currentSelection, currentSelectedRow);
     }
 
     tableNode.onSelect = (commonName, row) => {
@@ -103,7 +137,7 @@ toc: false
       lineChartNode.setSpecies(commonName);
     };
 
-    // Date slider widget — day-level granularity
+    // Date slider widget
     const dateSliderNode = (() => {
       const fmtFull = ts => new Date(ts).toLocaleDateString("en-US", {
         month: "long", day: "numeric", year: "numeric", timeZone: "UTC"
@@ -300,6 +334,8 @@ toc: false
 
       function applyAll() {
         mode = "all";
+        filterMonth = "all";
+        filterDay = "all";
         setActiveBtn("all");
         label.textContent = "All dates";
         mapCanvas.update(birds_clean);
@@ -307,13 +343,16 @@ toc: false
         barChartNode.update(null);
         currentRaw = birds_raw_clean;
         refreshHighlight();
+        mapCanvas.refreshObservations();
       }
 
       function applyMonth(dayIdx) {
         mode = "month";
-        setActiveBtn("month");
         const dayTs = startDay + dayIdx * ONE_DAY;
         const d = new Date(dayTs);
+        filterMonth = d.getUTCMonth() + 1;
+        filterDay = "all";
+        setActiveBtn("month");
         const monthStart = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
         const monthEnd = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1);
         label.textContent = fmtMonth(monthStart);
@@ -329,12 +368,16 @@ toc: false
         barChartNode.update(rawFiltered);
         currentRaw = rawFiltered;
         refreshHighlight();
+        mapCanvas.refreshObservations();
       }
 
       function applyDay(dayIdx) {
         mode = "day";
-        setActiveBtn("day");
         const dayTs = startDay + dayIdx * ONE_DAY;
+        const d = new Date(dayTs);
+        filterMonth = d.getUTCMonth() + 1;
+        filterDay = d.getUTCDate();
+        setActiveBtn("day");
         const nextDayTs = dayTs + ONE_DAY;
         label.textContent = fmtFull(dayTs);
         const rawFiltered = birds_raw_clean.filter(r => {
@@ -347,6 +390,7 @@ toc: false
         barChartNode.update(rawFiltered);
         currentRaw = rawFiltered;
         refreshHighlight();
+        mapCanvas.refreshObservations();
       }
 
       function applySlider() {
