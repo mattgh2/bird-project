@@ -21,6 +21,7 @@ export default {
 
   // The path to the source root.
   root: "src",
+  base: "/bird-project/"
 
   // Some additional configuration options and their defaults:
   // theme: "default", // try "light", "dark", "slate", etc.
