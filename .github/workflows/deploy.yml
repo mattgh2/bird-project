@@ -3,7 +3,7 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [master]
-  workflow_dispatch:  # lets you trigger manually
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-   build:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
