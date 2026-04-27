@@ -8,3 +8,4 @@ start
 download_fails
 archived_data
 csv/
+.env

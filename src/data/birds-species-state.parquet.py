@@ -1,6 +1,6 @@
-import duckdb
+from activate_con import get_db
 
-duckdb.execute("""
+get_db().execute("""
   COPY (
     SELECT
       "COMMON NAME" AS species,

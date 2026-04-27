@@ -1,6 +1,7 @@
-import duckdb
+from activate_con import get_db
 
-duckdb.execute("""
+con = get_db()
+con.execute("""
   COPY (
     SELECT
       "COMMON NAME" AS common_name,

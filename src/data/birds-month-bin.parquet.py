@@ -1,8 +1,9 @@
-import duckdb
+from activate_con import get_db
 
 BIN_SIZE = 0.1
+con = get_db()
 
-duckdb.execute(f"""
+con.execute(f"""
   COPY (
     SELECT
       FLOOR("LONGITUDE"::DOUBLE / {BIN_SIZE}) * {BIN_SIZE} + {BIN_SIZE} / 2 AS lng_bin,
