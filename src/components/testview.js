@@ -63,10 +63,10 @@ export function testview(data, maxRows = 1000) {
   const tbody = table.append("tbody");
 
   const columns = [
-    ["Date", d => formatDate(parseDate(d))],
+    ["Date", d => formatDate(parseDate(d)), d => Number(d.observation_date)],
     ["Common Name", d => d.common_name ?? ""],
     ["Scientific Name", d => d.scientific_name ?? ""],
-    ["Observation Count", d => d.observation_count ?? ""],
+    ["Observation Count", d => d.observation_count ?? "", d => Number(d.observation_count) || 0],
     ["State", d => d.state ?? ""],
     ["County", d => d.county ?? ""],
     ["Locality", d => d.locality ?? ""],
@@ -75,11 +75,30 @@ export function testview(data, maxRows = 1000) {
     ["Duration Minutes", d => d.duration_minutes?.toString?.() ?? ""]
   ];
 
-  thead.append("tr")
+  let sortIndex = 0;       // default: sort by Date
+  let sortDir = "asc";
+
+  function headerText(col, i) {
+    if (!col[2]) return col[0];
+    if (i !== sortIndex) return col[0] + "  ↕";
+    return col[0] + (sortDir === "asc" ? "  ▲" : "  ▼");
+  }
+
+  const headerCells = thead.append("tr")
     .selectAll("th")
     .data(columns)
     .join("th")
-    .text(d => d[0]);
+    .style("cursor", d => d[2] ? "pointer" : "default")
+    .style("user-select", "none")
+    .on("click", function(event, d) {
+      const i = columns.indexOf(d);
+      if (!d[2]) return;
+      if (i === sortIndex) sortDir = sortDir === "asc" ? "desc" : "asc";
+      else { sortIndex = i; sortDir = "desc"; }
+      headerCells.text((c, idx) => headerText(c, idx));
+      applyFilters();
+    })
+    .text((d, i) => headerText(d, i));
 
   let selectedName = null;
   let selectedRow = null;
@@ -137,6 +156,15 @@ export function testview(data, maxRows = 1000) {
       filtered = filtered.filter(d => new Date(Number(d.observation_date)).getUTCDate() === selectedDay);
     }
     if (q) filtered = filtered.filter(d => (d.common_name ?? "").toLowerCase().includes(q));
+
+    const sortAccessor = columns[sortIndex]?.[2];
+    if (sortAccessor) {
+      const sign = sortDir === "asc" ? 1 : -1;
+      filtered = [...filtered].sort((a, b) => {
+        const av = sortAccessor(a), bv = sortAccessor(b);
+        return av < bv ? -sign : av > bv ? sign : 0;
+      });
+    }
     render(filtered);
   }
 

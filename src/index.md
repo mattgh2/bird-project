@@ -385,8 +385,6 @@ toc: false
         </div>
     </div>
     <div class="main-right"> 
-        <div class="main-right-top"> 
-        </div>
         <div class="main-right-middle"> 
         ${heatMapNode}
         </div>
@@ -479,7 +477,7 @@ toc: false
     }
 
     .main-left-top, .main-left-bottom,
-    .main-right-top, .main-right-middle, .main-right-bottom {
+    .main-right-middle, .main-right-bottom {
         border: 1px solid var(--theme-foreground-fainter, #e0e0e0);
         border-radius: 12px;
         background-color: var(--theme-background-alt, #f8f8f8);
@@ -511,9 +509,9 @@ toc: false
         height: 25%;
     }
 
-    .main-right-top, .main-right-middle, .main-right-bottom {
+    .main-right-middle, .main-right-bottom {
         width: 100%;
-        height: 33%;
+        height: 49%;
     }
 
     .hero {

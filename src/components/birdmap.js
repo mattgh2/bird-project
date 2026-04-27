@@ -1,11 +1,13 @@
 import * as d3 from "npm:d3";
 import * as topojson from "npm:topojson-client";
 
-const us = await fetch("https://cdn.jsdelivr.net/npm/us-atlas@3/states-10m.json")
+const us = await fetch("https://cdn.jsdelivr.net/npm/us-atlas@3/counties-10m.json")
   .then(r => r.json());
 
 const states = topojson.feature(us, us.objects.states);
 const stateFeatures = states.features;
+const counties = topojson.feature(us, us.objects.counties);
+const countyFeatures = counties.features;
 
 // --- Hex grid utilities (pointy-top) ---
 const HEX_RADIUS = 7;
@@ -77,12 +79,27 @@ function hexBin(pointData, projection) {
   return result;
 }
 
-// white → teal → dark blue (log-scaled)
-const densityColor = d3.scaleSequentialLog(d3.interpolateRgbBasis([
-  "#f7fcf0", "#a8ddb5", "#43a2ca", "#0868ac", "#023858"
-]));
+// Bivariate palette: bilinear interpolation in Lab space between 4 corners.
+// (td, tf) ∈ [0,1]² where td = density, tf = flock size.
+function makeBivariate(c00, c10, c01, c11) {
+  return (td, tf) => {
+    const top = d3.interpolateLab(c00, c10)(td);
+    const bot = d3.interpolateLab(c01, c11)(td);
+    return d3.interpolateLab(top, bot)(tf);
+  };
+}
 
-const flockOpacity = d3.scaleLog().clamp(true);
+// Stevens-style pink/blue: density →, flock ↑
+const densityBivariate = makeBivariate(
+  "#c8c8c8", "#2f6f80",  // low flock:  mid-gray → deep teal
+  "#a73838", "#1f2a6b"   // high flock: dark rose → deep indigo
+);
+
+// Highlight palette: yellow/orange axis × purple axis
+const highlightBivariate = makeBivariate(
+  "#fff5eb", "#e6550d",  // low flock:  cream → red-orange
+  "#9e9ac8", "#3f007d"   // high flock: light purple → deep purple
+);
 
 export function BirdMap(data) {
   const width = 960;
@@ -124,12 +141,26 @@ export function BirdMap(data) {
 
   backBtn.addEventListener("click", () => {
     selectedState = null;
+    currentCounties = [];
+    tooltip.style.display = "none";
     projection = d3.geoAlbersUsa().fitSize([width, height], states);
     path = d3.geoPath(projection);
     backBtn.style.display = "none";
     canvas.style.cursor = "pointer";
     redraw();
   });
+
+  let currentCounties = [];
+
+  const tooltip = document.createElement("div");
+  tooltip.style.cssText = `
+    position:absolute; pointer-events:none; display:none;
+    background:rgba(0,0,0,0.82); color:#fff;
+    padding:3px 8px; border-radius:4px;
+    font-family:var(--sans-serif,sans-serif); font-size:11px;
+    white-space:nowrap; z-index:20;
+    transform:translate(-50%, calc(-100% - 8px));
+  `;
 
   // --- Legend panel ---
   const legend = document.createElement("div");
@@ -141,45 +172,40 @@ export function BirdMap(data) {
     display:flex; gap:24px;
   `;
 
-  // Color ramp legend
-  const colorSection = document.createElement("div");
-  const colorTitle = document.createElement("div");
-  colorTitle.style.cssText = "font-weight:600; margin-bottom:2px;";
-  colorTitle.textContent = "Observation Density";
+  // Bivariate legend: title + 2D color square with axis labels around it
+  const bivSection = document.createElement("div");
 
-  const rampCanvas = document.createElement("canvas");
-  rampCanvas.width = 140;
-  rampCanvas.height = 12;
-  rampCanvas.style.cssText = "width:140px; height:12px; border-radius:3px; display:block;";
+  const bivTitle = document.createElement("div");
+  bivTitle.style.cssText = "font-weight:600; margin-bottom:6px;";
+  bivTitle.textContent = "Density (→) × Flock (↑)";
 
-  const colorLabels = document.createElement("div");
-  colorLabels.style.cssText = "display:flex; justify-content:space-between; width:140px;";
-  const colorMinLabel = document.createElement("span");
-  const colorMaxLabel = document.createElement("span");
-  colorLabels.append(colorMinLabel, colorMaxLabel);
+  const PALETTE_PX = 80;
+  const bivBox = document.createElement("div");
+  bivBox.style.cssText = `position:relative; width:${PALETTE_PX + 36}px; height:${PALETTE_PX + 18}px;`;
 
-  colorSection.append(colorTitle, rampCanvas, colorLabels);
+  const flockLabel = document.createElement("div");
+  flockLabel.style.cssText = `position:absolute; left:0; top:0; height:${PALETTE_PX}px; width:14px; font-size:9px; font-weight:600; writing-mode:vertical-rl; transform:rotate(180deg); display:flex; align-items:center; justify-content:center;`;
+  flockLabel.textContent = "Flock";
 
-  // Opacity legend
-  const opacitySection = document.createElement("div");
-  const opacityTitle = document.createElement("div");
-  opacityTitle.style.cssText = "font-weight:600; margin-bottom:2px;";
-  opacityTitle.textContent = "Avg. Flock Size → Opacity";
+  const yMaxNum = document.createElement("span");
+  yMaxNum.style.cssText = "position:absolute; left:16px; top:-2px; font-size:9px;";
+  const yMinNum = document.createElement("span");
+  yMinNum.style.cssText = `position:absolute; left:16px; top:${PALETTE_PX - 10}px; font-size:9px;`;
 
-  const opacitySamples = document.createElement("canvas");
-  opacitySamples.width = 140;
-  opacitySamples.height = 16;
-  opacitySamples.style.cssText = "width:140px; height:16px; display:block;";
+  const paletteCanvas = document.createElement("canvas");
+  paletteCanvas.width = PALETTE_PX;
+  paletteCanvas.height = PALETTE_PX;
+  paletteCanvas.style.cssText = `position:absolute; left:36px; top:0; width:${PALETTE_PX}px; height:${PALETTE_PX}px; border-radius:3px; display:block;`;
 
-  const opacityLabels = document.createElement("div");
-  opacityLabels.style.cssText = "display:flex; justify-content:space-between; width:140px;";
-  const opacityMinLabel = document.createElement("span");
-  const opacityMaxLabel = document.createElement("span");
-  opacityLabels.append(opacityMinLabel, opacityMaxLabel);
+  const xMinNum = document.createElement("span");
+  xMinNum.style.cssText = `position:absolute; left:34px; top:${PALETTE_PX + 2}px; font-size:9px;`;
+  const xMaxNum = document.createElement("span");
+  xMaxNum.style.cssText = `position:absolute; right:0; top:${PALETTE_PX + 2}px; font-size:9px;`;
 
-  opacitySection.append(opacityTitle, opacitySamples, opacityLabels);
+  bivBox.append(flockLabel, yMaxNum, yMinNum, paletteCanvas, xMinNum, xMaxNum);
+  bivSection.append(bivTitle, bivBox);
 
-  legend.append(colorSection, opacitySection);
+  legend.append(bivSection);
 
   function fmtNum(n) {
     if (n >= 1e6) return (n / 1e6).toFixed(1) + "M";
@@ -187,41 +213,25 @@ export function BirdMap(data) {
     return n < 10 ? n.toFixed(1) : Math.round(n).toString();
   }
 
-  function updateLegend(colorScale, opScale, minCount, maxCount, minFlock, maxFlock, isHighlight) {
-    // Draw color ramp
-    const rCtx = rampCanvas.getContext("2d");
-    rCtx.clearRect(0, 0, 140, 12);
-    for (let i = 0; i < 140; i++) {
-      const t = i / 139;
-      const val = minCount * Math.pow(maxCount / minCount, t);
-      rCtx.fillStyle = colorScale(val);
-      rCtx.fillRect(i, 0, 1, 12);
+  function updateLegend(colorFn, minCount, maxCount, minFlock, maxFlock, isHighlight) {
+    const pCtx = paletteCanvas.getContext("2d");
+    pCtx.clearRect(0, 0, PALETTE_PX, PALETTE_PX);
+    for (let x = 0; x < PALETTE_PX; x++) {
+      const td = x / (PALETTE_PX - 1);
+      for (let y = 0; y < PALETTE_PX; y++) {
+        const tf = 1 - y / (PALETTE_PX - 1);
+        pCtx.fillStyle = colorFn(td, tf);
+        pCtx.fillRect(x, y, 1, 1);
+      }
     }
-    colorMinLabel.textContent = fmtNum(minCount);
-    colorMaxLabel.textContent = fmtNum(maxCount);
-    colorTitle.textContent = isHighlight ? "Species Density" : "Observation Density";
-
-    // Draw opacity samples — 5 hex cells at increasing opacity
-    const oCtx = opacitySamples.getContext("2d");
-    oCtx.clearRect(0, 0, 140, 16);
-    const midColor = colorScale(Math.sqrt(minCount * maxCount));
-    const steps = 5;
-    for (let i = 0; i < steps; i++) {
-      const t = i / (steps - 1);
-      const alpha = 0.35 + 0.65 * t;
-      const cx = 14 + i * 28;
-      oCtx.globalAlpha = alpha;
-      oCtx.beginPath();
-      hexPath(oCtx, cx, 8, 7);
-      oCtx.fillStyle = midColor;
-      oCtx.fill();
-    }
-    oCtx.globalAlpha = 1;
-    opacityMinLabel.textContent = fmtNum(minFlock);
-    opacityMaxLabel.textContent = fmtNum(maxFlock);
+    yMaxNum.textContent = fmtNum(maxFlock);
+    yMinNum.textContent = fmtNum(minFlock);
+    xMinNum.textContent = fmtNum(minCount);
+    xMaxNum.textContent = fmtNum(maxCount);
+    bivTitle.textContent = isHighlight ? "Species (→) × Flock (↑)" : "Density (→) × Flock (↑)";
   }
 
-  container.append(legend, canvas, backBtn);
+  container.append(legend, canvas, backBtn, tooltip);
 
   function getDisplayPoints() {
     if (!selectedState || !currentPoints) return currentPoints;
@@ -234,12 +244,27 @@ export function BirdMap(data) {
     path.context(ctx)(states);
     ctx.fillStyle = darkMode ? "#2a2a2a" : "#d0d0d0";
     ctx.fill();
-    ctx.strokeStyle = darkMode ? "#aaa" : "#333";
-    ctx.lineWidth = 0.5;
+  }
+
+  function drawBorders() {
+    if (selectedState) {
+      const statePrefix = String(selectedState.id).padStart(2, "0");
+      ctx.beginPath();
+      for (const f of countyFeatures) {
+        if (String(f.id).padStart(5, "0").startsWith(statePrefix)) path.context(ctx)(f);
+      }
+      ctx.strokeStyle = "#b5b5b5";
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    }
+    ctx.beginPath();
+    path.context(ctx)(states);
+    ctx.strokeStyle = "#9a9a9a";
+    ctx.lineWidth = 0.7;
     ctx.stroke();
   }
 
-  function drawHexLayer(pointData, colorInterp, opacityScale, isHighlight) {
+  function drawHexLayer(pointData, colorFn, isHighlight) {
     if (!pointData || !pointData.length) return;
     const cells = hexBin(pointData, projection);
     if (!cells.length) return;
@@ -251,31 +276,28 @@ export function BirdMap(data) {
     const minFlock = Math.max(1, d3.min(flocks));
     const maxFlock = Math.max(minFlock + 0.01, d3.max(flocks));
 
-    colorInterp.domain([minCount, maxCount]);
-    opacityScale.domain([minFlock, maxFlock]).range([0.35, 1]);
+    const logMinC = Math.log(minCount);
+    const logRangeC = Math.log(maxCount) - logMinC || 1;
+    const logMinF = Math.log(minFlock);
+    const logRangeF = Math.log(maxFlock) - logMinF || 1;
 
     for (const cell of cells) {
-      const alpha = opacityScale(Math.max(cell.avg_flock, minFlock));
-      ctx.globalAlpha = alpha;
+      const td = (Math.log(Math.max(cell.count, minCount)) - logMinC) / logRangeC;
+      const tf = (Math.log(Math.max(cell.avg_flock, minFlock)) - logMinF) / logRangeF;
       ctx.beginPath();
       hexPath(ctx, cell.cx, cell.cy, HEX_RADIUS);
-      ctx.fillStyle = colorInterp(cell.count);
+      ctx.fillStyle = colorFn(td, tf);
       ctx.fill();
     }
-    ctx.globalAlpha = 1;
 
-    updateLegend(colorInterp, opacityScale, minCount, maxCount, minFlock, maxFlock, isHighlight);
+    updateLegend(colorFn, minCount, maxCount, minFlock, maxFlock, isHighlight);
   }
-
-  // Highlight color ramp (white → orange → dark red)
-  const highlightColor = d3.scaleSequentialLog(d3.interpolateRgbBasis([
-    "#fff5eb", "#fdae6b", "#e6550d", "#a63603", "#7f2704"
-  ]));
 
   function redraw() {
     drawBase();
     if (highlightPoints && highlightPoints.length) {
-      drawHexLayer(highlightPoints, highlightColor, flockOpacity.copy(), true);
+      drawHexLayer(highlightPoints, highlightBivariate, true);
+      drawBorders();
       if (primaryPoint) {
         const p = projection([primaryPoint.lng_bin, primaryPoint.lat_bin]);
         if (p) {
@@ -290,7 +312,8 @@ export function BirdMap(data) {
         }
       }
     } else {
-      drawHexLayer(getDisplayPoints(), densityColor, flockOpacity.copy(), false);
+      drawHexLayer(getDisplayPoints(), densityBivariate, false);
+      drawBorders();
     }
   }
 
@@ -310,11 +333,34 @@ export function BirdMap(data) {
     if (!clicked) return;
 
     selectedState = clicked;
+    const statePrefix = String(selectedState.id).padStart(2, "0");
+    currentCounties = countyFeatures.filter(f => String(f.id).padStart(5, "0").startsWith(statePrefix));
     projection = d3.geoAlbersUsa().fitSize([width, height], selectedState);
     path = d3.geoPath(projection);
     backBtn.style.display = "block";
     canvas.style.cursor = "default";
     redraw();
+  });
+
+  canvas.addEventListener("mousemove", (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const cssX = event.clientX - rect.left;
+    const cssY = event.clientY - rect.top;
+    const cx = cssX * (width / rect.width);
+    const cy = cssY * (height / rect.height);
+    const coords = projection.invert([cx, cy]);
+    if (!coords) { tooltip.style.display = "none"; return; }
+    const pool = selectedState ? currentCounties : stateFeatures;
+    const hit = pool.find(f => d3.geoContains(f, coords));
+    if (!hit) { tooltip.style.display = "none"; return; }
+    tooltip.textContent = hit.properties.name;
+    tooltip.style.left = (canvas.offsetLeft + cssX) + "px";
+    tooltip.style.top = (canvas.offsetTop + cssY) + "px";
+    tooltip.style.display = "block";
+  });
+
+  canvas.addEventListener("mouseleave", () => {
+    tooltip.style.display = "none";
   });
 
   container.update = function(pointData) {

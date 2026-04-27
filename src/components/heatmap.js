@@ -15,7 +15,8 @@ export function HeatMap(stateMonthData) {
   const lookup = new Map(parsed.map(d => [`${d.state}\0${d.month}`, d.count]));
   const maxCount = d3.max(parsed, d => d.count) || 1;
 
-  const colorScale = d3.scaleSequential(d3.interpolateBlues).domain([0, maxCount]);
+  const minPositive = d3.min(parsed, d => d.count > 0 ? d.count : null) || 1;
+  const colorScale = d3.scaleSequentialLog(d3.interpolateBlues).domain([minPositive, maxCount]);
   const fmt = d3.format(",");
   const textColor = darkMode ? "#aaa" : "#555";
 
@@ -44,13 +45,17 @@ export function HeatMap(stateMonthData) {
     const svg = d3.create("svg").attr("width", "100%").attr("height", lH).style("display", "block");
     const defs = svg.append("defs");
     const grad = defs.append("linearGradient").attr("id", gradId).attr("x1", "0%").attr("x2", "100%");
+    const logMin = Math.log(minPositive);
+    const logMax = Math.log(maxCount);
     for (const t of d3.range(0, 1.05, 0.1)) {
-      grad.append("stop").attr("offset", `${t * 100}%`).attr("stop-color", colorScale(t * maxCount));
+      grad.append("stop").attr("offset", `${t * 100}%`)
+        .attr("stop-color", colorScale(Math.exp(logMin + t * (logMax - logMin))));
     }
     svg.append("rect").attr("x", barX).attr("y", 2).attr("width", barW).attr("height", 10).attr("fill", `url(#${gradId})`).attr("rx", 2);
 
     const tickColor = darkMode ? "#888" : "#777";
-    for (const [anchor, value, offset] of [["start", 0, 0], ["middle", maxCount / 2, barW / 2], ["end", maxCount, barW]]) {
+    const midValue = Math.exp((logMin + logMax) / 2);
+    for (const [anchor, value, offset] of [["start", minPositive, 0], ["middle", midValue, barW / 2], ["end", maxCount, barW]]) {
       svg.append("text").attr("x", barX + offset).attr("y", lH - 1)
         .attr("text-anchor", anchor).attr("font-size", 9).attr("fill", tickColor)
         .text(fmt(Math.round(value)));
