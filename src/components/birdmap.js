@@ -135,6 +135,7 @@ export function BirdMap(data, options = {}) {
   const height = 600;
 
   let selectedState = null;
+  let hoveredState = null;
   let currentPoints = data;
   let highlightPoints = null;
   let primaryPoint = null;
@@ -174,6 +175,7 @@ export function BirdMap(data, options = {}) {
     canvas.style.display = "none";
     legend.style.display = "none";
     tooltip.style.display = "none";
+    hint.style.display = "none";
     osmContainer.style.display = "block";
 
     if (leafletMap) { leafletMap.remove(); leafletMap = null; }
@@ -229,6 +231,7 @@ export function BirdMap(data, options = {}) {
     osmContainer.style.display = "none";
     canvas.style.display = "block";
     legend.style.display = "flex";
+    hint.style.display = "block";
   }
 
   const fmtDate = ts => ts
@@ -391,7 +394,16 @@ export function BirdMap(data, options = {}) {
     bivTitle.textContent = isHighlight ? "Species (→) × Flock (↑)" : "Density (→) × Flock (↑)";
   }
 
-  container.append(legend, canvas, osmContainer, backBtn, tooltip);
+  const hint = document.createElement("div");
+  hint.textContent = "Click any state to explore observations";
+  hint.style.cssText = `
+    text-align:center; font-size:11px; padding:4px 0 2px;
+    font-family:var(--sans-serif,sans-serif);
+    color:${darkMode ? "#888" : "#999"};
+    font-style:italic;
+  `;
+
+  container.append(legend, canvas, osmContainer, backBtn, tooltip, hint);
 
   function getDisplayPoints() {
     if (!selectedState || !currentPoints) return currentPoints;
@@ -453,6 +465,17 @@ export function BirdMap(data, options = {}) {
     updateLegend(colorFn, minCount, maxCount, minFlock, maxFlock, isHighlight);
   }
 
+  function drawHoverHighlight() {
+    if (!hoveredState || selectedState) return;
+    ctx.beginPath();
+    path.context(ctx)(hoveredState);
+    ctx.fillStyle = darkMode ? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.35)";
+    ctx.fill();
+    ctx.strokeStyle = darkMode ? "rgba(255,255,255,0.7)" : "rgba(60,60,60,0.8)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
   function redraw() {
     drawBase();
     if (highlightPoints && highlightPoints.length) {
@@ -475,6 +498,7 @@ export function BirdMap(data, options = {}) {
       drawHexLayer(getDisplayPoints(), densityBivariate, false);
       drawBorders();
     }
+    drawHoverHighlight();
   }
 
   redraw();
@@ -519,10 +543,19 @@ export function BirdMap(data, options = {}) {
     const cx = cssX * (width / rect.width);
     const cy = cssY * (height / rect.height);
     const coords = projection.invert([cx, cy]);
-    if (!coords) { tooltip.style.display = "none"; return; }
+    if (!coords) {
+      tooltip.style.display = "none";
+      if (hoveredState) { hoveredState = null; redraw(); }
+      return;
+    }
     const hit = stateFeatures.find(f => d3.geoContains(f, coords));
-    if (!hit) { tooltip.style.display = "none"; return; }
-    tooltip.textContent = hit.properties.name;
+    if (!hit) {
+      tooltip.style.display = "none";
+      if (hoveredState) { hoveredState = null; redraw(); }
+      return;
+    }
+    if (hoveredState !== hit) { hoveredState = hit; redraw(); }
+    tooltip.textContent = `${hit.properties.name} — click to explore`;
     tooltip.style.left = (canvas.offsetLeft + cssX) + "px";
     tooltip.style.top = (canvas.offsetTop + cssY) + "px";
     tooltip.style.display = "block";
@@ -530,6 +563,7 @@ export function BirdMap(data, options = {}) {
 
   canvas.addEventListener("mouseleave", () => {
     tooltip.style.display = "none";
+    if (hoveredState) { hoveredState = null; redraw(); }
   });
 
   container.update = function(pointData) {
