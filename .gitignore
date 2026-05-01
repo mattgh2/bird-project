@@ -3,6 +3,13 @@ dist/
 node_modules/
 yarn-error.log
 src/data/*.parquet
+!src/data/birds-agg.parquet
+!src/data/birds-month-bin.parquet
+!src/data/birds.parquet
+!src/data/birds-species.parquet
+!src/data/birds-species-state.parquet
+!src/data/birds-species-month-obvcount.parquet
+!src/data/birds-state-month-obvcount.parquet
 src/data/*.csv
 start
 download_fails
