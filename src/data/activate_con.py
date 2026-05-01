@@ -5,6 +5,7 @@ import os
 def get_db():
     con = duckdb.connect()
     con.execute("INSTALL httpfs; LOAD httpfs;")
+    con.execute("SET http_timeout=600000;")
     con.execute(f"""
             CREATE SECRET (
                 TYPE R2,
