@@ -12,12 +12,22 @@ export function HeatMap(stateMonthData) {
   })).filter(d => !isNaN(d.month) && !isNaN(d.count));
 
   const states = [...new Set(parsed.map(d => d.state))].sort();
-  const lookup = new Map(parsed.map(d => [`${d.state}\0${d.month}`, d.count]));
-  const maxCount = d3.max(parsed, d => d.count) || 1;
+  const rawLookup = new Map(parsed.map(d => [`${d.state}\0${d.month}`, d.count]));
 
-  const minPositive = d3.min(parsed, d => d.count > 0 ? d.count : null) || 1;
-  const colorScale = d3.scaleSequentialLog(d3.interpolateBlues).domain([minPositive, maxCount]);
-  const fmt = d3.format(",");
+  // Normalize each state row by its own peak month so seasonal patterns are
+  // visible regardless of how many total observations a state has.
+  const stateMax = new Map(states.map(s => [
+    s,
+    d3.max(parsed.filter(d => d.state === s), d => d.count) || 1,
+  ]));
+  const lookup = new Map(
+    [...rawLookup.entries()].map(([k, v]) => {
+      const s = k.split("\0")[0];
+      return [k, v / stateMax.get(s)];
+    })
+  );
+
+  const colorScale = d3.scaleSequential(d3.interpolateBlues).domain([0, 1]);
   const textColor = darkMode ? "#aaa" : "#555";
 
   // --- Root container ---
@@ -29,7 +39,7 @@ export function HeatMap(stateMonthData) {
   header.style.cssText = "flex-shrink:0;padding:8px 12px 4px;";
 
   const titleEl = document.createElement("div");
-  titleEl.textContent = "State × Month vs Observation Count";
+  titleEl.textContent = "State × Month — Activity Relative to Peak";
   titleEl.style.cssText = `font-size:11px;font-weight:600;color:${textColor};text-align:center;margin-bottom:4px;`;
   header.appendChild(titleEl);
 
@@ -45,20 +55,17 @@ export function HeatMap(stateMonthData) {
     const svg = d3.create("svg").attr("width", "100%").attr("height", lH).style("display", "block");
     const defs = svg.append("defs");
     const grad = defs.append("linearGradient").attr("id", gradId).attr("x1", "0%").attr("x2", "100%");
-    const logMin = Math.log(minPositive);
-    const logMax = Math.log(maxCount);
     for (const t of d3.range(0, 1.05, 0.1)) {
       grad.append("stop").attr("offset", `${t * 100}%`)
-        .attr("stop-color", colorScale(Math.exp(logMin + t * (logMax - logMin))));
+        .attr("stop-color", colorScale(t));
     }
     svg.append("rect").attr("x", barX).attr("y", 2).attr("width", barW).attr("height", 10).attr("fill", `url(#${gradId})`).attr("rx", 2);
 
     const tickColor = darkMode ? "#888" : "#777";
-    const midValue = Math.exp((logMin + logMax) / 2);
-    for (const [anchor, value, offset] of [["start", minPositive, 0], ["middle", midValue, barW / 2], ["end", maxCount, barW]]) {
+    for (const [anchor, value, offset] of [["start", "0%", 0], ["middle", "50%", barW / 2], ["end", "100%", barW]]) {
       svg.append("text").attr("x", barX + offset).attr("y", lH - 1)
         .attr("text-anchor", anchor).attr("font-size", 9).attr("fill", tickColor)
-        .text(fmt(Math.round(value)));
+        .text(value);
     }
 
     legendNode = svg.node();
