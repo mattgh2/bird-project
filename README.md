@@ -3,7 +3,7 @@
 This is an [Observable Framework](https://observablehq.com/framework/) app. To install the required dependencies, run:
 
 ```
-npm install; pip install -r requirements.txt
+npm install
 ```
 Then, to start the local preview server, run:
 
