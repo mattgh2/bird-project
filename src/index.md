@@ -252,7 +252,7 @@ toc: false
 
       const thumb = document.createElement("img");
       thumb.className = "bds-thumb";
-      thumb.src = "/_file/data/slider_image.png";
+      thumb.src = await FileAttachment("data/slider_image.png").url();
 
       // Generate month boundary ticks on the track
       const rangeStart = new Date(startDay);
