@@ -40,6 +40,8 @@ toc: false
     let filterMonth = "all";
     let filterDay = "all";
 
+    const sliderImageUrl = await FileAttachment("data/slider_image.png").url();
+
     function hexEncode(str) {
       return Array.from(new TextEncoder().encode(str))
         .map(b => b.toString(16).padStart(2, "0"))
@@ -252,7 +254,7 @@ toc: false
 
       const thumb = document.createElement("img");
       thumb.className = "bds-thumb";
-      thumb.src = await FileAttachment("data/slider_image.png").url();
+      thumb.src = sliderImageUrl;
 
       // Generate month boundary ticks on the track
       const rangeStart = new Date(startDay);
