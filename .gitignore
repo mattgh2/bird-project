@@ -9,3 +9,5 @@ download_fails
 archived_data
 csv/
 .env
+.wrangler/
+worker

@@ -47,17 +47,18 @@ toc: false
         .join("");
     }
 
+    const WORKER_URL = "https://bird-observations.mattwarner744.workers.dev";
+
     async function loadStateObservations(stateCode) {
       const month = filterMonth;
       const day = filterDay;
       const species = currentSelection || "all";
       const speciesParam = species === "all" ? "all" : hexEncode(species);
-      const url = `/_file/data/birds-state-${stateCode}-${month}-${day}-${speciesParam}.json`;
+      const url = `${WORKER_URL}/state/${stateCode}/${month}/${day}/${speciesParam}`;
       const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP ${response.status} loading observations for ${stateCode}`);
       return response.json();
     }
-
 
     // Aggregate raw rows into {lat_bin, lng_bin, count, avg_flock} for the map
     const BIN_SIZE = 0.5;
@@ -187,20 +188,13 @@ toc: false
           background: var(--theme-foreground-fainter, #ddd);
           cursor: pointer;
         }
-        .bds-fill {
-          position: absolute; top: 0; left: 0; bottom: 0;
-          border-radius: 3px;
-          background: var(--theme-foreground-focus, #3b82f6);
-          pointer-events: none;
-        }
         .bds-thumb {
           position: absolute; top: 50%;
-          width: 16px; height: 16px; border-radius: 50%;
-          background: var(--theme-foreground-focus, #3b82f6);
-          border: 2px solid var(--theme-background, #fff);
-          box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+          width: 40px; height: 40px;
+          object-fit: contain;
           transform: translate(-50%, -50%);
           pointer-events: none;
+          filter: drop-shadow(0 1px 4px rgba(0,0,0,0.35));
         }
         .bds-tick {
           position: absolute; top: -10px; width: 1px; height: 8px;
@@ -255,11 +249,11 @@ toc: false
       const track = document.createElement("div");
       track.className = "bds-track";
 
-      const fill = document.createElement("div");
-      fill.className = "bds-fill";
 
-      const thumb = document.createElement("div");
+
+      const thumb = document.createElement("img");
       thumb.className = "bds-thumb";
+      thumb.src = "/_file/data/slider_image.png";
 
       // Generate month boundary ticks on the track
       const rangeStart = new Date(startDay);
@@ -286,7 +280,7 @@ toc: false
         ));
       }
 
-      track.append(fill, thumb);
+      track.append(thumb);
       trackWrap.append(track);
 
       // End labels
@@ -301,7 +295,6 @@ toc: false
       function updateThumb() {
         const pct = (sliderValue / totalDays) * 100;
         thumb.style.left = pct + "%";
-        fill.style.width = pct + "%";
       }
 
       function setValueFromEvent(e) {
