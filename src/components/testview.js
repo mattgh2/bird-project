@@ -1,5 +1,4 @@
 import * as d3 from "npm:d3";
-import {DuckDBClient} from "npm:@observablehq/duckdb";
 
 export function testview(data, maxRows = 1000) {
   const parseDate = d => new Date(Number(d.observation_date));
