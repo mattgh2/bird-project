@@ -10,6 +10,7 @@ const stateFeatures = states.features;
 const counties = topojson.feature(us, us.objects.counties);
 const countyFeatures = counties.features;
 
+
 // Inject Leaflet CSS once (npm import gives us JS only)
 (() => {
   if (document.querySelector('link[data-leaflet-css]')) return;
@@ -20,7 +21,7 @@ const countyFeatures = counties.features;
   document.head.appendChild(link);
 })();
 
-// --- Hex grid utilities (pointy-top) ---
+// Hex grid utility functions.
 const HEX_RADIUS = 7;
 const SQRT3 = Math.sqrt(3);
 
@@ -321,7 +322,7 @@ export function BirdMap(data, options = {}) {
     transform:translate(-50%, calc(-100% - 8px));
   `;
 
-  // --- Legend panel ---
+  // Legend panel
   const legend = document.createElement("div");
   legend.style.cssText = `
     padding:8px 12px;

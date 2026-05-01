@@ -11,7 +11,6 @@ toc: false
     // full data with spatial binning to reduce size.
     const birds_agg = await FileAttachment("data/birds-agg.parquet").parquet();
     const birds_clean = birds_agg.toArray().map(d => d.toJSON());
-    console.log(birds_clean.length)
 
     // No aggregation, but limited to 10k samples
     const birds_raw = await FileAttachment("data/birds.parquet").parquet();
